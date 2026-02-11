@@ -30,7 +30,8 @@ class Helpers {
   }
 
   static String getOrdinal(int number) {
-    if (number >= 11 && number <= 13) return '${number}th';
+    final lastTwo = number % 100;
+    if (lastTwo >= 11 && lastTwo <= 13) return '${number}th';
     switch (number % 10) {
       case 1:
         return '${number}st';
