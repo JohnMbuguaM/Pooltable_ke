@@ -132,14 +132,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pool Table KE',
+                  'ChalkMan',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
                 ),
                 Text(
-                  'Max Game Scorer',
+                  'Premium Pool Scorer',
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(context)
