@@ -4,217 +4,133 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // ============ PREMIUM COLOR SYSTEM ============
+  // Brand Colors
+  static const Color primaryGreen = Color(0xFF1B5E20);
+  static const Color feltGreen = Color(0xFF2E7D32);
+  static const Color darkGreen = Color(0xFF0D3B0F);
+  static const Color accentGold = Color(0xFFFFB300);
+  static const Color accentAmber = Color(0xFFFFC107);
 
-  // Primary Brand - Deep Emerald Felt
-  static const Color deepEmerald = Color(0xFF0B3D2E);
-  static const Color deepEmeraldDark = Color(0xFF06281F);
-  static const Color feltGreen = Color(0xFF0E5740);
-  static const Color feltHighlight = Color(0xFF12724F);
+  // Semantic
+  static const Color success = Color(0xFF4CAF50);
+  static const Color error = Color(0xFFEF5350);
+  static const Color warning = Color(0xFFFF9800);
+  static const Color info = Color(0xFF42A5F5);
 
-  // Premium Gold Accents
-  static const Color premiumGold = Color(0xFFD4AF37);
-  static const Color goldHighlight = Color(0xFFF5D76E);
-  static const Color goldDim = Color(0xFFB8941F);
-
-  // Charcoal Foundation
-  static const Color charcoalBase = Color(0xFF121212);
-  static const Color charcoalElevated = Color(0xFF1A1A1A);
-  static const Color charcoalCard = Color(0xFF1E1E1E);
-  static const Color charcoalOverlay = Color(0xFF252525);
-
-  // Semantic Colors
-  static const Color success = Color(0xFF10B981);
-  static const Color error = Color(0xFFEF4444);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color info = Color(0xFF3B82F6);
-
-  // Legacy aliases (for backward compatibility)
-  static const Color primaryGreen = deepEmerald;
-  static const Color darkGreen = deepEmeraldDark;
-  static const Color accentGold = premiumGold;
-  static const Color accentAmber = goldHighlight;
-  static const Color darkSurface = charcoalElevated;
-  static const Color darkCard = charcoalCard;
-  static const Color darkElevated = charcoalOverlay;
-
-  // ============ PREMIUM TYPOGRAPHY ============
-
-  static TextTheme _buildMonospaceTextTheme(TextTheme base) {
-    return GoogleFonts.robotoMonoTextTheme(base).copyWith(
-      displayLarge: GoogleFonts.robotoMono(fontSize: 57, fontWeight: FontWeight.w300, letterSpacing: -0.25),
-      displayMedium: GoogleFonts.robotoMono(fontSize: 45, fontWeight: FontWeight.w300),
-      displaySmall: GoogleFonts.robotoMono(fontSize: 36, fontWeight: FontWeight.w400),
-      headlineLarge: GoogleFonts.robotoMono(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-      headlineMedium: GoogleFonts.robotoMono(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-      headlineSmall: GoogleFonts.robotoMono(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-      titleLarge: GoogleFonts.robotoMono(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: 0.15),
-      titleMedium: GoogleFonts.robotoMono(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.15),
-      titleSmall: GoogleFonts.robotoMono(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.1),
-      bodyLarge: GoogleFonts.robotoMono(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
-      bodyMedium: GoogleFonts.robotoMono(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
-      bodySmall: GoogleFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
-      labelLarge: GoogleFonts.robotoMono(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.0),
-      labelMedium: GoogleFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8),
-      labelSmall: GoogleFonts.robotoMono(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-    );
-  }
+  // Dark theme surfaces
+  static const Color darkSurface = Color(0xFF1A1A2E);
+  static const Color darkCard = Color(0xFF16213E);
+  static const Color darkElevated = Color(0xFF1F2940);
 
   static ThemeData get darkTheme {
     final base = ThemeData.dark(useMaterial3: true);
     return base.copyWith(
       colorScheme: ColorScheme.dark(
-        primary: deepEmerald,
+        primary: feltGreen,
         onPrimary: Colors.white,
-        secondary: premiumGold,
+        secondary: accentGold,
         onSecondary: Colors.black,
-        surface: charcoalCard,
+        surface: darkSurface,
         onSurface: Colors.white,
         error: error,
         onError: Colors.white,
-        tertiary: feltGreen,
-        onTertiary: Colors.white,
       ),
-      scaffoldBackgroundColor: charcoalBase,
+      scaffoldBackgroundColor: const Color(0xFF0F0F1A),
       appBarTheme: AppBarTheme(
-        backgroundColor: charcoalElevated,
+        backgroundColor: darkSurface,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.robotoMono(
+        titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
-          letterSpacing: 1.0,
         ),
       ),
       cardTheme: CardThemeData(
-        color: charcoalCard,
-        elevation: 8,
-        shadowColor: Colors.black.withValues(alpha: 0.5),
+        color: darkCard,
+        elevation: 4,
+        shadowColor: Colors.black45,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: deepEmerald.withValues(alpha: 0.2),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: deepEmerald,
+          backgroundColor: feltGreen,
           foregroundColor: Colors.white,
-          elevation: 4,
-          shadowColor: deepEmerald.withValues(alpha: 0.4),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.robotoMono(
+          textStyle: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.0,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: premiumGold,
-          side: BorderSide(color: premiumGold.withValues(alpha: 0.5), width: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          foregroundColor: accentGold,
+          side: const BorderSide(color: accentGold, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.robotoMono(
+          textStyle: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.0,
           ),
         ),
       ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: premiumGold,
-        foregroundColor: charcoalBase,
-        elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: accentGold,
+        foregroundColor: Colors.black,
+        elevation: 6,
       ),
-      textTheme: _buildMonospaceTextTheme(base.textTheme).apply(
+      textTheme: GoogleFonts.poppinsTextTheme(base.textTheme).apply(
         bodyColor: Colors.white,
         displayColor: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: charcoalOverlay,
+        fillColor: darkElevated,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: deepEmerald.withValues(alpha: 0.3)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: deepEmerald.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: deepEmerald, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: feltGreen, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: GoogleFonts.robotoMono(
-          color: Colors.white.withValues(alpha: 0.4),
-          fontSize: 14,
-          letterSpacing: 0.5,
-        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: charcoalElevated,
-        selectedItemColor: premiumGold,
-        unselectedItemColor: Colors.white.withValues(alpha: 0.4),
+        backgroundColor: darkSurface,
+        selectedItemColor: accentGold,
+        unselectedItemColor: Colors.white.withValues(alpha: 0.5),
         type: BottomNavigationBarType.fixed,
-        elevation: 16,
-        selectedLabelStyle: GoogleFonts.robotoMono(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-        ),
-        unselectedLabelStyle: GoogleFonts.robotoMono(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.5,
-        ),
+        elevation: 8,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: charcoalCard,
-        elevation: 24,
-        shadowColor: Colors.black.withValues(alpha: 0.7),
+        backgroundColor: darkCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(
-            color: deepEmerald.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(20),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: charcoalOverlay,
-        contentTextStyle: GoogleFonts.robotoMono(
-          color: Colors.white,
-          fontSize: 14,
-          letterSpacing: 0.5,
-        ),
+        backgroundColor: darkElevated,
+        contentTextStyle: GoogleFonts.poppins(color: Colors.white),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: deepEmerald.withValues(alpha: 0.5),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(10),
         ),
         behavior: SnackBarBehavior.floating,
-        elevation: 8,
       ),
       dividerTheme: DividerThemeData(
-        color: deepEmerald.withValues(alpha: 0.2),
-        thickness: 1,
+        color: Colors.white.withValues(alpha: 0.1),
       ),
     );
   }
@@ -223,136 +139,87 @@ class AppTheme {
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
       colorScheme: ColorScheme.light(
-        primary: deepEmerald,
+        primary: feltGreen,
         onPrimary: Colors.white,
-        secondary: premiumGold,
-        onSecondary: charcoalBase,
-        surface: const Color(0xFFF8F8F8),
-        onSurface: charcoalBase,
+        secondary: accentGold,
+        onSecondary: Colors.black,
+        surface: Colors.white,
+        onSurface: const Color(0xFF1A1A2E),
         error: error,
         onError: Colors.white,
-        tertiary: feltGreen,
-        onTertiary: Colors.white,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF0F0F0),
+      scaffoldBackgroundColor: const Color(0xFFF5F5F5),
       appBarTheme: AppBarTheme(
-        backgroundColor: deepEmerald,
+        backgroundColor: feltGreen,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.robotoMono(
+        titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
-          letterSpacing: 1.0,
         ),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
-        elevation: 4,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
+        elevation: 2,
+        shadowColor: Colors.black12,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: deepEmerald.withValues(alpha: 0.1),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: deepEmerald,
+          backgroundColor: feltGreen,
           foregroundColor: Colors.white,
           elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.robotoMono(
+          textStyle: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.0,
           ),
         ),
       ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: premiumGold,
-        foregroundColor: charcoalBase,
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: feltGreen,
+        foregroundColor: Colors.white,
         elevation: 6,
+      ),
+      textTheme: GoogleFonts.poppinsTextTheme(base.textTheme),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFFF0F0F0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: feltGreen, width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: feltGreen,
+        unselectedItemColor: Colors.grey.shade400,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
       ),
-      textTheme: _buildMonospaceTextTheme(base.textTheme).apply(
-        bodyColor: charcoalBase,
-        displayColor: charcoalBase,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFFF8F8F8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: deepEmerald.withValues(alpha: 0.2)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: deepEmerald.withValues(alpha: 0.2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: deepEmerald, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: GoogleFonts.robotoMono(
-          color: charcoalBase.withValues(alpha: 0.4),
-          fontSize: 14,
-          letterSpacing: 0.5,
-        ),
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: Colors.white,
-        selectedItemColor: premiumGold,
-        unselectedItemColor: charcoalBase.withValues(alpha: 0.4),
-        type: BottomNavigationBarType.fixed,
-        elevation: 16,
-        selectedLabelStyle: GoogleFonts.robotoMono(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-        ),
-        unselectedLabelStyle: GoogleFonts.robotoMono(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.5,
-        ),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white,
-        elevation: 24,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(
-            color: deepEmerald.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
-      ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: charcoalCard,
-        contentTextStyle: GoogleFonts.robotoMono(
-          color: Colors.white,
-          fontSize: 14,
-          letterSpacing: 0.5,
-        ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(10),
         ),
         behavior: SnackBarBehavior.floating,
-        elevation: 8,
-      ),
-      dividerTheme: DividerThemeData(
-        color: deepEmerald.withValues(alpha: 0.2),
-        thickness: 1,
       ),
     );
   }
