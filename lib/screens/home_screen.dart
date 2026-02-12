@@ -391,12 +391,15 @@ class _GameCard extends StatelessWidget {
                               fontSize: 11,
                             ),
                           ),
-                          Text(
-                            '${leader.name}: ${leader.score}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.accentGold.withValues(alpha: 0.8),
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              '${leader.name}: ${leader.score}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.accentGold.withValues(alpha: 0.8),
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
