@@ -129,7 +129,7 @@ class GameScreen extends StatelessWidget {
           // Scoreboard (tap to select player - TURN badge shows current)
           Scoreboard(
             game: game,
-            onPlayerTap: (index) async => await provider.selectPlayer(index),
+            onPlayerTap: (playerId) async => await provider.selectPlayer(playerId),
           ),
           const SizedBox(height: 14),
 

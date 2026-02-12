@@ -159,13 +159,18 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> selectPlayer(int playerIndex) async {
+  Future<void> selectPlayer(String playerId) async {
     if (_currentGame == null || _currentGame!.isGameOver) return;
-    if (playerIndex < 0 || playerIndex >= _currentGame!.players.length) return;
-    if (_currentGame!.players[playerIndex].isEliminated) return;
+
+    // Find the player index by ID
+    final playerIndex = _currentGame!.players.indexWhere((p) => p.id == playerId);
+    if (playerIndex == -1) return; // Player not found
+
+    final player = _currentGame!.players[playerIndex];
+    if (player.isEliminated) return;
 
     _currentGame!.currentPlayerIndex = playerIndex;
-    _lastEvent = 'Selected: ${_currentGame!.currentPlayer.name}';
+    _lastEvent = 'Selected: ${player.name}';
     await _saveCurrentGame();
     notifyListeners();
   }

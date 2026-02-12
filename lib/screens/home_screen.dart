@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
@@ -56,15 +57,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             slivers: [
               // Header
               SliverToBoxAdapter(child: _buildHeader(context)),
-
-              // Quick Actions
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: _buildQuickActions(context),
-                ),
-              ),
 
               // Active Games
               SliverToBoxAdapter(
@@ -168,60 +160,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: Theme.of(context).colorScheme.secondary,
             ),
           ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+          PopupMenuButton<String>(
             icon: Icon(
-              Icons.settings_rounded,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
+              Icons.more_vert_rounded,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
+            onSelected: (value) {
+              switch (value) {
+                case 'history':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                  );
+                case 'settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'history',
+                child: Row(
+                  children: [
+                    Icon(Icons.history_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text('History'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text('Settings'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.sports_esports_rounded,
-            label: 'New Game',
-            color: AppTheme.feltGreen,
-            onTap: () => _navigateToNewGame(context),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.history_rounded,
-            label: 'History',
-            color: AppTheme.accentGold,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HistoryScreen()),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.settings_rounded,
-            label: 'Settings',
-            color: Colors.blueGrey,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -256,6 +238,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         }
 
+        // Show only the last 3 active games
+        final displayedGames = games.take(min(3, games.length)).toList();
+
         return SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
@@ -263,11 +248,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               (context, index) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _GameCard(
-                  game: games[index],
-                  onTap: () => _navigateToGame(context, games[index]),
+                  game: displayedGames[index],
+                  onTap: () => _navigateToGame(context, displayedGames[index]),
                 ),
               ),
-              childCount: games.length,
+              childCount: displayedGames.length,
             ),
           ),
         );
@@ -329,49 +314,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         MaterialPageRoute(builder: (_) => const GameScreen()),
       );
     }
-  }
-}
-
-class _QuickActionCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickActionCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

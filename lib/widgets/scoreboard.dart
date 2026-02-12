@@ -4,7 +4,7 @@ import 'player_card.dart';
 
 class Scoreboard extends StatelessWidget {
   final Game game;
-  final Function(int playerIndex)? onPlayerTap;
+  final Function(String playerId)? onPlayerTap;
 
   const Scoreboard({super.key, required this.game, this.onPlayerTap});
 
@@ -54,7 +54,6 @@ class Scoreboard extends StatelessWidget {
         ),
         ...activePlayers.asMap().entries.map((entry) {
           final player = entry.value;
-          final originalIndex = game.players.indexOf(player);
           return Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: PlayerCard(
@@ -62,7 +61,7 @@ class Scoreboard extends StatelessWidget {
               isCurrentPlayer: player.id == game.currentPlayer.id,
               rank: entry.key + 1,
               onTap: onPlayerTap != null
-                  ? () => onPlayerTap!(originalIndex)
+                  ? () => onPlayerTap!(player.id)
                   : null,
             ),
           );
