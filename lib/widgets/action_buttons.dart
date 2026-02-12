@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/action.dart';
 import '../utils/constants.dart';
 import '../utils/theme.dart';
+import 'ball_painter.dart';
 
 class ActionButtons extends StatelessWidget {
   final VoidCallback onPocket;
@@ -165,46 +166,19 @@ class ActionButtons extends StatelessWidget {
       return;
     }
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => _MultiSelectBallDialog(
+        title: 'Select Balls Pocketed in Combo',
+        subtitle: 'Tap balls to select, then confirm',
+        remainingBalls: remainingBalls,
+        onConfirm: (selectedBalls) {
+          // Process each selected ball as a combo shot
+          for (final ball in selectedBalls) {
+            onCombo(ball);
+          }
+        },
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select ball pocketed in combo',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: remainingBalls.map((ball) {
-                  return ActionChip(
-                    label: Text('Ball $ball',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onCombo(ball);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -214,46 +188,16 @@ class ActionButtons extends StatelessWidget {
       return;
     }
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => _SingleSelectBallDialog(
+        title: 'Wrong Ball Contact',
+        subtitle: 'Select the ball that was hit first',
+        remainingBalls: remainingBalls,
+        onConfirm: (ball) {
+          onPenalty(ActionType.wrongBallContact, ballNumber: ball);
+        },
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Which ball was hit?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: remainingBalls.map((ball) {
-                  return ActionChip(
-                    label: Text('Ball $ball',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onPenalty(ActionType.wrongBallContact, ballNumber: ball);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -263,46 +207,16 @@ class ActionButtons extends StatelessWidget {
       return;
     }
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => _SingleSelectBallDialog(
+        title: 'Ball Touched',
+        subtitle: 'Select the ball that was touched',
+        remainingBalls: remainingBalls,
+        onConfirm: (ball) {
+          onPenalty(ActionType.ballTouched, ballNumber: ball);
+        },
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Which ball was touched?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: remainingBalls.map((ball) {
-                  return ActionChip(
-                    label: Text('Ball $ball',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onPenalty(ActionType.ballTouched, ballNumber: ball);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -312,46 +226,19 @@ class ActionButtons extends StatelessWidget {
       return;
     }
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => _MultiSelectBallDialog(
+        title: 'Balls Jumped Off',
+        subtitle: 'Select all balls that jumped off the table',
+        remainingBalls: remainingBalls,
+        onConfirm: (selectedBalls) {
+          // Process each selected ball
+          for (final ball in selectedBalls) {
+            onPenalty(ActionType.ballJumpedOff, ballNumber: ball);
+          }
+        },
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Which ball jumped off?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: remainingBalls.map((ball) {
-                  return ActionChip(
-                    label: Text('Ball $ball',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onPenalty(ActionType.ballJumpedOff, ballNumber: ball);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
     );
   }
 }
@@ -492,6 +379,254 @@ class _FoulChip extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// Multi-select ball dialog for Combo and Ball Off
+class _MultiSelectBallDialog extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final List<int> remainingBalls;
+  final Function(List<int>) onConfirm;
+
+  const _MultiSelectBallDialog({
+    required this.title,
+    required this.subtitle,
+    required this.remainingBalls,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_MultiSelectBallDialog> createState() => _MultiSelectBallDialogState();
+}
+
+class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
+  final Set<int> _selectedBalls = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.subtitle,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Ball selection grid
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.remainingBalls.map((ball) {
+                final isSelected = _selectedBalls.contains(ball);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedBalls.remove(ball);
+                      } else {
+                        _selectedBalls.add(ball);
+                      }
+                    });
+                  },
+                  child: Stack(
+                    children: [
+                      BallWidget(
+                        ballNumber: ball,
+                        isPocketed: false,
+                        size: 42,
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedBalls.isEmpty
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          widget.onConfirm(_selectedBalls.toList()..sort());
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.feltGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Confirm (${_selectedBalls.length})'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Single-select ball dialog for Touch
+class _SingleSelectBallDialog extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final List<int> remainingBalls;
+  final Function(int) onConfirm;
+
+  const _SingleSelectBallDialog({
+    required this.title,
+    required this.subtitle,
+    required this.remainingBalls,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_SingleSelectBallDialog> createState() => _SingleSelectBallDialogState();
+}
+
+class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
+  int? _selectedBall;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.subtitle,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Ball selection grid
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.remainingBalls.map((ball) {
+                final isSelected = _selectedBall == ball;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedBall = ball;
+                    });
+                  },
+                  child: Stack(
+                    children: [
+                      BallWidget(
+                        ballNumber: ball,
+                        isPocketed: false,
+                        size: 42,
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedBall == null
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          widget.onConfirm(_selectedBall!);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade400,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
