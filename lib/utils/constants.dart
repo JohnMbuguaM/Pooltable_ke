@@ -39,12 +39,12 @@ class AppConstants {
   }
 
   // Penalty amounts
-  static const int wrongBallContactPenalty = 5;
-  static const int cueBallScratchPenalty = 5;
-  static const int ballTouchedPenalty = 5;
-  static const int ballJumpedOffPenalty = 5;
-  static const int cueBallJumpedOffPenalty = 5;
-  static const int carryBallPenalty = 5;
+  static const int wrongBallContactPenalty = 6;
+  static const int cueBallScratchPenalty = 6;
+  static const int ballTouchedPenalty = 6;
+  static const int ballJumpedOffPenalty = 6;
+  static const int cueBallJumpedOffPenalty = 6;
+  static const int carryBallPenalty = 6;
 
   // Ball colors for UI
   static const Map<int, int> ballColors = {

@@ -99,13 +99,13 @@ void main() {
     });
 
     group('penalty constants', () {
-      test('all penalties are 5 points', () {
-        expect(AppConstants.wrongBallContactPenalty, 5);
-        expect(AppConstants.cueBallScratchPenalty, 5);
-        expect(AppConstants.ballTouchedPenalty, 5);
-        expect(AppConstants.ballJumpedOffPenalty, 5);
-        expect(AppConstants.cueBallJumpedOffPenalty, 5);
-        expect(AppConstants.carryBallPenalty, 5);
+      test('all penalties are 6 points', () {
+        expect(AppConstants.wrongBallContactPenalty, 6);
+        expect(AppConstants.cueBallScratchPenalty, 6);
+        expect(AppConstants.ballTouchedPenalty, 6);
+        expect(AppConstants.ballJumpedOffPenalty, 6);
+        expect(AppConstants.cueBallJumpedOffPenalty, 6);
+        expect(AppConstants.carryBallPenalty, 6);
       });
     });
 

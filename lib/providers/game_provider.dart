@@ -110,10 +110,30 @@ class GameProvider extends ChangeNotifier {
   Future<void> missShot() async {
     if (_currentGame == null || _currentGame!.isGameOver) return;
 
+    GameLogicService.applyMiss(_currentGame!);
+    _lastEvent =
+        '${_currentGame!.actions.last.description}';
+
+    await _postAction();
+  }
+
+  Future<void> nextPlayer() async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+
     GameLogicService.advanceTurn(_currentGame!);
-    _lastEvent = 'Miss - next player';
+    _lastEvent = 'Next player: ${_currentGame!.currentPlayer.name}';
 
     await _saveCurrentGame();
+    notifyListeners();
+  }
+
+  void selectPlayer(int playerIndex) {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+    if (playerIndex < 0 || playerIndex >= _currentGame!.players.length) return;
+    if (_currentGame!.players[playerIndex].isEliminated) return;
+
+    _currentGame!.currentPlayerIndex = playerIndex;
+    _lastEvent = 'Selected: ${_currentGame!.currentPlayer.name}';
     notifyListeners();
   }
 
@@ -122,11 +142,17 @@ class GameProvider extends ChangeNotifier {
   Future<void> _postAction() async {
     if (_currentGame == null) return;
 
-    // Check eliminations
+    // Check re-entries first (leader may have lost points from fouls,
+    // letting eliminated players back in)
+    final reEntered = GameLogicService.checkReEntries(_currentGame!);
+    for (final player in reEntered) {
+      _lastEvent = '${player.name} is back in the game!';
+    }
+
+    // Check eliminations (scores stay intact - no handicap)
     final eliminated = GameLogicService.checkEliminations(_currentGame!);
     for (final player in eliminated) {
       _lastEvent = '${player.name} eliminated!';
-      GameLogicService.applyHandicap(_currentGame!, player);
     }
 
     // Check early win
@@ -145,6 +171,17 @@ class GameProvider extends ChangeNotifier {
         _lastEvent = '${winner.name} wins!';
       }
       GameLogicService.assignRankings(_currentGame!);
+    }
+
+    // Money ball alert (only if game is still active)
+    if (!_currentGame!.isGameOver) {
+      final moneyBallLeader =
+          GameLogicService.checkMoneyBall(_currentGame!);
+      if (moneyBallLeader != null) {
+        final ball = _currentGame!.currentTargetBall;
+        _lastEvent =
+            'Ball $ball is the money ball for ${moneyBallLeader.name}!';
+      }
     }
 
     await _saveCurrentGame();

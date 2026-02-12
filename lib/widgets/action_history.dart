@@ -156,6 +156,8 @@ class _ActionTile extends StatelessWidget {
         return Icons.swipe;
       case ActionType.handicapAdjustment:
         return Icons.balance;
+      case ActionType.miss:
+        return Icons.close_rounded;
     }
   }
 }

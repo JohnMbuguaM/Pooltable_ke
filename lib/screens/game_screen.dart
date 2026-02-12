@@ -2,34 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
+import '../models/action.dart';
 import '../utils/theme.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/ball_tracker.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/action_history.dart';
+import '../services/game_logic_service.dart';
+import 'rematch_setup_screen.dart';
 
-class GameScreen extends StatefulWidget {
+class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
-
-  @override
-  State<GameScreen> createState() => _GameScreenState();
-}
-
-class _GameScreenState extends State<GameScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +43,7 @@ class _GameScreenState extends State<GameScreen>
         return Scaffold(
           appBar: _buildAppBar(context, game, provider),
           body: game.isGameOver
-              ? _buildGameOverView(context, game)
+              ? _buildGameOverView(context, game, provider)
               : _buildGameView(context, game, provider),
         );
       },
@@ -110,7 +93,8 @@ class _GameScreenState extends State<GameScreen>
                   children: [
                     Icon(Icons.flag_rounded, size: 20, color: Colors.red),
                     SizedBox(width: 10),
-                    Text('Abandon Game', style: TextStyle(color: Colors.red)),
+                    Text('Abandon Game',
+                        style: TextStyle(color: Colors.red)),
                   ],
                 ),
               ),
@@ -122,133 +106,58 @@ class _GameScreenState extends State<GameScreen>
 
   Widget _buildGameView(
       BuildContext context, Game game, GameProvider provider) {
-    return Column(
-      children: [
-        // Tab bar
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.darkElevated,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              color: AppTheme.feltGreen,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            dividerHeight: 0,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white54,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-            tabs: const [
-              Tab(text: 'Score'),
-              Tab(text: 'Actions'),
-              Tab(text: 'History'),
-            ],
-          ),
-        ),
-        // Tab views
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildScoreTab(game, provider),
-              _buildActionsTab(game, provider),
-              _buildHistoryTab(game),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+    final targetBall = game.currentTargetBall;
+    final moneyBallLeader = GameLogicService.checkMoneyBall(game);
 
-  Widget _buildScoreTab(Game game, GameProvider provider) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Current player banner
-          _CurrentPlayerBanner(game: game),
-          const SizedBox(height: 12),
+          // Money ball alert
+          if (moneyBallLeader != null && targetBall > 0)
+            _MoneyBallBanner(
+              leaderName: moneyBallLeader.name,
+              ballNumber: targetBall,
+            ),
+
           // Ball tracker
           BallTracker(game: game),
-          const SizedBox(height: 12),
-          // Scoreboard
-          Scoreboard(game: game),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 10),
 
-  Widget _buildActionsTab(Game game, GameProvider provider) {
-    final targetBall = game.currentTargetBall;
+          // Scoreboard (tap to select player - TURN badge shows current)
+          Scoreboard(
+            game: game,
+            onPlayerTap: (index) => provider.selectPlayer(index),
+          ),
+          const SizedBox(height: 14),
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Current player & target ball info
-          _CurrentPlayerBanner(game: game),
-          const SizedBox(height: 16),
           // Action buttons
           ActionButtons(
             onPocket: () => provider.pocketBall(),
             onMiss: () => provider.missShot(),
+            onNextPlayer: () => provider.nextPlayer(),
             onCombo: (ball) => provider.combinationShot(ball),
             onNeutral: () => provider.neutralShot(),
-            onPenalty: (type) => provider.applyPenalty(type),
+            onPenalty: (ActionType type, {int? ballNumber}) =>
+                provider.applyPenalty(type, ballNumber: ballNumber),
             onUndo: () => provider.undoLastAction(),
             canUndo: game.actions.isNotEmpty,
             remainingBalls: game.remainingBalls,
             currentTargetBall: targetBall > 0 ? targetBall : null,
           ),
+          const SizedBox(height: 14),
+
+          // Collapsible action history
+          if (game.actions.isNotEmpty) _ActionHistorySection(game: game),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildHistoryTab(Game game) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.history_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.secondary),
-              const SizedBox(width: 6),
-              const Text(
-                'Action Log',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${game.actions.length} actions',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ActionHistory(actions: game.actions),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameOverView(BuildContext context, Game game) {
+  Widget _buildGameOverView(
+      BuildContext context, Game game, GameProvider provider) {
     final winner = game.winnerId != null
         ? game.players.firstWhere((p) => p.id == game.winnerId)
         : null;
@@ -260,11 +169,11 @@ class _GameScreenState extends State<GameScreen>
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           // Trophy icon
           Container(
-            width: 80,
-            height: 80,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -282,24 +191,24 @@ class _GameScreenState extends State<GameScreen>
             ),
             child: const Icon(
               Icons.emoji_events_rounded,
-              size: 44,
+              size: 40,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (winner != null) ...[
             Text(
               winner.name,
               style: const TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               'Winner with ${winner.score} points!',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 color: AppTheme.accentGold.withValues(alpha: 0.8),
               ),
             ),
@@ -307,7 +216,7 @@ class _GameScreenState extends State<GameScreen>
             const Text(
               'Game Over',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -327,7 +236,7 @@ class _GameScreenState extends State<GameScreen>
               ),
             ),
           ],
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Final standings
           Container(
@@ -385,7 +294,8 @@ class _GameScreenState extends State<GameScreen>
                                   'Eliminated',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.red.withValues(alpha: 0.6),
+                                    color:
+                                        Colors.red.withValues(alpha: 0.6),
                                   ),
                                 ),
                             ],
@@ -396,9 +306,8 @@ class _GameScreenState extends State<GameScreen>
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: isWinner
-                                ? AppTheme.accentGold
-                                : null,
+                            color:
+                                isWinner ? AppTheme.accentGold : null,
                           ),
                         ),
                       ],
@@ -424,11 +333,17 @@ class _GameScreenState extends State<GameScreen>
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.pop(context);
-                    // Could navigate to new game screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RematchSetupScreen(
+                          previousGame: game,
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.replay_rounded),
-                  label: const Text('New Game'),
+                  label: const Text('Play Again'),
                 ),
               ),
             ],
@@ -530,86 +445,149 @@ class _GameScreenState extends State<GameScreen>
   }
 }
 
-class _CurrentPlayerBanner extends StatelessWidget {
+class _ActionHistorySection extends StatefulWidget {
   final Game game;
 
-  const _CurrentPlayerBanner({required this.game});
+  const _ActionHistorySection({required this.game});
+
+  @override
+  State<_ActionHistorySection> createState() => _ActionHistorySectionState();
+}
+
+class _ActionHistorySectionState extends State<_ActionHistorySection> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final player = game.currentPlayer;
-    final targetBall = game.currentTargetBall;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            AppTheme.feltGreen.withValues(alpha: 0.2),
-            AppTheme.feltGreen.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppTheme.feltGreen.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.person_rounded,
-              color: AppTheme.feltGreen, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        // Header - tap to expand/collapse
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius: _expanded
+                  ? const BorderRadius.vertical(top: Radius.circular(12))
+                  : BorderRadius.circular(12),
+            ),
+            child: Row(
               children: [
-                Text(
-                  player.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Icon(Icons.history_rounded,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.secondary),
+                const SizedBox(width: 6),
+                const Text(
+                  'Action Log',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
+                const SizedBox(width: 6),
                 Text(
-                  'Score: ${player.score}',
+                  '(${widget.game.actions.length})',
                   style: TextStyle(
                     fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    size: 20,
                     color: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
               ],
             ),
           ),
-          if (targetBall > 0)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.accentGold.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppTheme.accentGold.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+        ),
+        // Expandable content
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(12)),
+            ),
+            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+            child: ActionHistory(actions: widget.game.actions),
+          ),
+          crossFadeState:
+              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
+      ],
+    );
+  }
+}
+
+class _MoneyBallBanner extends StatelessWidget {
+  final String leaderName;
+  final int ballNumber;
+
+  const _MoneyBallBanner({
+    required this.leaderName,
+    required this.ballNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.accentGold.withValues(alpha: 0.25),
+            AppTheme.accentGold.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.accentGold.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_fire_department_rounded,
+              color: AppTheme.accentGold, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, height: 1.3),
                 children: [
-                  const Icon(Icons.adjust,
-                      size: 16, color: AppTheme.accentGold),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Ball $targetBall',
-                    style: const TextStyle(
-                      color: AppTheme.accentGold,
+                  const TextSpan(
+                    text: 'Money Ball! ',
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      color: AppTheme.accentGold,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'Ball $ballNumber wins it for ',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  TextSpan(
+                    text: leaderName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.accentGold,
                     ),
                   ),
                 ],
               ),
             ),
+          ),
         ],
       ),
     );

@@ -431,41 +431,41 @@ void main() {
     //  applyPenalty - ALL PENALTY TYPES
     // ==========================================
     group('applyPenalty', () {
-      test('wrongBallContact deducts 5 points', () {
+      test('wrongBallContact deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.wrongBallContact);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
-      test('cueBallScratch deducts 5 points', () {
+      test('cueBallScratch deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.cueBallScratch);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
-      test('ballTouched deducts 5 points', () {
+      test('ballTouched deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.ballTouched);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
-      test('cueBallJumpedOff deducts 5 points', () {
+      test('cueBallJumpedOff deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.cueBallJumpedOff);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
-      test('carryBall deducts 5 points', () {
+      test('carryBall deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.carryBall);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
-      test('ballJumpedOff deducts 5 points', () {
+      test('ballJumpedOff deducts 6 points', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.ballJumpedOff,
             ballNumber: 5);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
       test('ballJumpedOff removes the ball from play', () {
@@ -511,7 +511,7 @@ void main() {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.wrongBallContact);
         expect(game.actions.last.type, ActionType.wrongBallContact);
-        expect(game.actions.last.pointsChange, -5);
+        expect(game.actions.last.pointsChange, -6);
       });
 
       test('penalty stores previous state for undo', () {
@@ -520,7 +520,7 @@ void main() {
         GameLogicService.applyPenalty(game, ActionType.cueBallScratch);
         final action = game.actions.last;
         expect(action.previousScore, 20);
-        expect(game.players[0].score, 15);
+        expect(game.players[0].score, 14);
       });
 
       test('multiple penalties accumulate', () {
@@ -529,7 +529,7 @@ void main() {
         // Advances to player 2, switch back for testing
         game.currentPlayerIndex = 0;
         GameLogicService.applyPenalty(game, ActionType.cueBallScratch);
-        expect(game.players[0].score, -10);
+        expect(game.players[0].score, -12);
       });
 
       test('score can go deeply negative', () {
@@ -538,7 +538,7 @@ void main() {
           game.currentPlayerIndex = 0;
           GameLogicService.applyPenalty(game, ActionType.wrongBallContact);
         }
-        expect(game.players[0].score, -50);
+        expect(game.players[0].score, -60);
       });
     });
 
@@ -668,84 +668,233 @@ void main() {
     });
 
     // ==========================================
-    //  applyHandicap
+    //  checkReEntries
     // ==========================================
-    group('applyHandicap', () {
-      test('deducts deficit from leader when player eliminated', () {
+    group('checkReEntries', () {
+      test('no re-entries when no players are eliminated', () {
         final players = [
           makePlayer('p1', 'Alice', score: 50),
-          makePlayer('p2', 'Bob', score: 10, eliminated: true),
-          makePlayer('p3', 'Charlie', score: 30),
+          makePlayer('p2', 'Bob', score: 10),
         ];
         final game = makeGame(players: players);
 
-        // Alice leads with 50. Bob had 10. Deficit = 50 - 10 = 40.
-        GameLogicService.applyHandicap(game, players[1]);
-
-        expect(players[0].score, 10); // 50 - 40 = 10
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered, isEmpty);
       });
 
-      test('creates handicapAdjustment action', () {
+      test('re-enters player when leader lost enough points', () {
+        // Alice was leader at 100, Bob eliminated at score 0.
+        // Now Alice dropped to 5 after fouls. Remaining = 6.
+        // Bob: 0 + 6 = 6 >= 5 → re-enter.
         final players = [
-          makePlayer('p1', 'Alice', score: 50),
-          makePlayer('p2', 'Bob', score: 10, eliminated: true),
+          makePlayer('p1', 'Alice', score: 5),
+          makePlayer('p2', 'Bob', score: 0, eliminated: true),
         ];
-        final game = makeGame(players: players);
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3], // value = 6
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
 
-        GameLogicService.applyHandicap(game, players[1]);
+        final reEntered = GameLogicService.checkReEntries(game);
 
-        expect(game.actions.last.type, ActionType.handicapAdjustment);
-        expect(game.actions.last.pointsChange, -40);
+        expect(reEntered.length, 1);
+        expect(reEntered.first.name, 'Bob');
+        expect(players[1].isEliminated, false);
+        expect(players[1].eliminatedAtRound, isNull);
       });
 
-      test('returns null if no active players', () {
+      test('does NOT re-enter player who still cannot catch up', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 100),
+          makePlayer('p2', 'Bob', score: 0, eliminated: true),
+        ];
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3], // value = 6, Bob: 0 + 6 = 6 < 100
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
+
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered, isEmpty);
+        expect(players[1].isEliminated, true);
+      });
+
+      test('re-enters player who can exactly tie', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 6),
+          makePlayer('p2', 'Bob', score: 0, eliminated: true),
+        ];
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3], // value = 6, Bob: 0 + 6 = 6 >= 6
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
+
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered.length, 1);
+        expect(reEntered.first.name, 'Bob');
+      });
+
+      test('re-enters multiple eliminated players', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 5),
+          makePlayer('p2', 'Bob', score: 0, eliminated: true),
+          makePlayer('p3', 'Charlie', score: 0, eliminated: true),
+        ];
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3], // value = 6, both can reach 6 >= 5
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
+
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered.length, 2);
+      });
+
+      test('returns empty when no active players', () {
         final players = [
           makePlayer('p1', 'Alice', score: 50, eliminated: true),
           makePlayer('p2', 'Bob', score: 10, eliminated: true),
         ];
         final game = makeGame(players: players);
 
-        final result = GameLogicService.applyHandicap(game, players[1]);
-        expect(result, isNull);
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered, isEmpty);
       });
 
-      test('returns null if deficit is 0 (leader not ahead)', () {
+      test('elimination does NOT affect other players scores', () {
+        // Verify no handicap: when Bob is eliminated, Alice keeps her score
+        final players = [
+          makePlayer('p1', 'Alice', score: 80),
+          makePlayer('p2', 'Bob', score: 5),
+          makePlayer('p3', 'Charlie', score: 40),
+        ];
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3], // Only 6 points left
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
+
+        GameLogicService.checkEliminations(game);
+
+        // All scores intact - no handicap deduction
+        expect(players[0].score, 80);
+        expect(players[1].score, 5);
+        expect(players[2].score, 40);
+      });
+    });
+
+    // ==========================================
+    //  checkMoneyBall
+    // ==========================================
+    group('checkMoneyBall', () {
+      test('returns null at start of game (too many balls left)', () {
+        final game = makeGame();
+        expect(GameLogicService.checkMoneyBall(game), isNull);
+      });
+
+      test('returns leader when pocketing current ball clinches win', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 90),
+          makePlayer('p2', 'Bob', score: 10),
+        ];
+        // Remaining: ball 3 (6 pts) and ball 7 (7 pts) = 13 total
+        // Target ball is 3 (value 6). If Alice pockets it: 90 + 6 = 96
+        // Remaining after: 7 pts. Bob: 10 + 7 = 17 < 96 → money ball!
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3, 7],
+          pocketedBalls: [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15],
+          currentBallSequenceIndex: 0, // target = ball 3
+        );
+
+        final result = GameLogicService.checkMoneyBall(game);
+        expect(result, isNotNull);
+        expect(result!.name, 'Alice');
+      });
+
+      test('returns null when opponent can still catch up after pocket', () {
         final players = [
           makePlayer('p1', 'Alice', score: 10),
-          makePlayer('p2', 'Bob', score: 10, eliminated: true),
-          makePlayer('p3', 'Charlie', score: 10),
+          makePlayer('p2', 'Bob', score: 5),
         ];
-        final game = makeGame(players: players);
-
-        final result = GameLogicService.applyHandicap(game, players[1]);
-        expect(result, isNull);
+        // Remaining: ball 3 (6) + ball 7 (7) = 13 total
+        // Alice pockets ball 3: 10 + 6 = 16. Remaining: 7. Bob: 5 + 7 = 12 < 16?
+        // Actually 12 < 16, so money ball. Let me make a case where it's not.
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3, 7, 8],
+          pocketedBalls: [1, 2, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15],
+          currentBallSequenceIndex: 0,
+        );
+        // Alice pockets ball 3 (6): 10+6=16. Remaining: 7+8=15. Bob: 5+15=20 >= 16
+        expect(GameLogicService.checkMoneyBall(game), isNull);
       });
 
-      test('handicap stores previous score for undo', () {
+      test('returns null with only one active player', () {
         final players = [
           makePlayer('p1', 'Alice', score: 50),
-          makePlayer('p2', 'Bob', score: 20, eliminated: true),
+          makePlayer('p2', 'Bob', score: 10, eliminated: true),
         ];
-        final game = makeGame(players: players);
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3],
+          pocketedBalls: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
 
-        GameLogicService.applyHandicap(game, players[1]);
-
-        expect(game.actions.last.previousScore, 50);
+        expect(GameLogicService.checkMoneyBall(game), isNull);
       });
 
-      test('handicap targets the correct leader among multiple active players', () {
+      test('returns null when no balls remain', () {
         final players = [
-          makePlayer('p1', 'Alice', score: 30),
-          makePlayer('p2', 'Bob', score: 5, eliminated: true),
-          makePlayer('p3', 'Charlie', score: 60), // Leader
+          makePlayer('p1', 'Alice', score: 100),
+          makePlayer('p2', 'Bob', score: 50),
         ];
-        final game = makeGame(players: players);
+        final game = makeGame(
+          players: players,
+          remainingBalls: [],
+          pocketedBalls: AppConstants.allBalls,
+        );
 
-        GameLogicService.applyHandicap(game, players[1]);
+        expect(GameLogicService.checkMoneyBall(game), isNull);
+      });
 
-        // Charlie was leader with 60, deficit = 60 - 5 = 55
-        expect(players[2].score, 5); // 60 - 55 = 5
-        expect(players[0].score, 30); // Alice unchanged
+      test('money ball with multiple opponents checks all of them', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 90),
+          makePlayer('p2', 'Bob', score: 10),
+          makePlayer('p3', 'Charlie', score: 80), // High scorer too
+        ];
+        // Remaining: ball 3 (6), ball 7 (7) = 13 total
+        // Alice pockets ball 3: 96. Remaining: 7. Charlie: 80+7=87 < 96 → money ball
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3, 7],
+          pocketedBalls: [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15],
+          currentBallSequenceIndex: 0,
+        );
+
+        final result = GameLogicService.checkMoneyBall(game);
+        expect(result, isNotNull);
+        expect(result!.name, 'Alice');
+      });
+
+      test('not a money ball when one opponent can tie', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 8),
+          makePlayer('p2', 'Bob', score: 7),
+        ];
+        // Remaining: ball 3 (6), ball 7 (7) = 13
+        // Alice pockets ball 3: 8+6=14. Remaining: 7. Bob: 7+7=14 >= 14 → not money ball
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3, 7],
+          pocketedBalls: [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15],
+          currentBallSequenceIndex: 0,
+        );
+
+        expect(GameLogicService.checkMoneyBall(game), isNull);
       });
     });
 
@@ -943,7 +1092,7 @@ void main() {
         final game = makeGame();
         game.players[0].score = 20;
         GameLogicService.applyPenalty(game, ActionType.wrongBallContact);
-        expect(game.players[0].score, 15);
+        expect(game.players[0].score, 14);
 
         GameLogicService.undoLastAction(game);
         expect(game.players[0].score, 20);
@@ -1163,10 +1312,10 @@ void main() {
         // Bob scratches
         GameLogicService.applyPenalty(game, ActionType.cueBallScratch);
         expect(game.currentPlayerIndex, 0); // Alice's turn
-        expect(players[1].score, 1); // 6 - 5 = 1
+        expect(players[1].score, 0); // 6 - 6 = 0
       });
 
-      test('game with elimination and handicap', () {
+      test('game with elimination keeps all scores intact', () {
         final players = [
           makePlayer('p1', 'Alice', score: 80),
           makePlayer('p2', 'Bob', score: 5),
@@ -1185,11 +1334,37 @@ void main() {
         // Charlie (40 + 6 = 46 < 80) -> eliminated
         expect(eliminated.length, 2);
 
-        // Apply handicap for Bob
-        GameLogicService.applyHandicap(game, players[1]);
-        // Leader was Alice (80), deficit = 80 - 5 = 75
-        // Alice: 80 - 75 = 5
-        expect(players[0].score, 5);
+        // No handicap - all scores stay intact
+        expect(players[0].score, 80);
+        expect(players[1].score, 5);
+        expect(players[2].score, 40);
+      });
+
+      test('eliminated player re-enters after leader loses points', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 80),
+          makePlayer('p2', 'Bob', score: 5),
+          makePlayer('p3', 'Charlie', score: 40),
+        ];
+        final game = makeGame(
+          players: players,
+          remainingBalls: [3, 7], // 6 + 7 = 13 points left
+          pocketedBalls: [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15],
+        );
+
+        // Bob (5+13=18 < 80) and Charlie (40+13=53 < 80) eliminated
+        GameLogicService.checkEliminations(game);
+        expect(players[1].isEliminated, true);
+        expect(players[2].isEliminated, true);
+
+        // Alice gets multiple fouls, drops to 10
+        players[0].score = 10;
+
+        // Both can now catch up: Bob 5+13=18>=10, Charlie 40+13=53>=10
+        final reEntered = GameLogicService.checkReEntries(game);
+        expect(reEntered.length, 2);
+        expect(players[1].isEliminated, false);
+        expect(players[2].isEliminated, false);
       });
 
       test('out-of-sequence pocketing followed by sequence play', () {
@@ -1214,7 +1389,7 @@ void main() {
         // Pocket, penalty, combo, neutral
         GameLogicService.applySuccessfulPocket(game); // Ball 3, +6
         game.currentPlayerIndex = 0;
-        GameLogicService.applyPenalty(game, ActionType.wrongBallContact); // -5
+        GameLogicService.applyPenalty(game, ActionType.wrongBallContact); // -6
         game.currentPlayerIndex = 0;
         GameLogicService.applyCombinationShot(game, 10); // +10
         game.currentPlayerIndex = 0;
@@ -1267,7 +1442,7 @@ void main() {
       test('penalty on first shot gives negative score', () {
         final game = makeGame();
         GameLogicService.applyPenalty(game, ActionType.wrongBallContact);
-        expect(game.players[0].score, -5);
+        expect(game.players[0].score, -6);
       });
 
       test('ball jumped off that is current target advances sequence', () {

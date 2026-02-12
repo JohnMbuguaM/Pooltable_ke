@@ -152,26 +152,37 @@ class GameLogicService {
   }
 
   /// Apply a penalty action
+  /// For ball-specific fouls (wrongBallContact, ballTouched, ballJumpedOff),
+  /// the penalty is the value of the specific ball involved.
+  /// For non-ball fouls (scratch, cue off, carry), a flat penalty applies.
   static GameAction applyPenalty(Game game, ActionType penaltyType,
       {int? ballNumber}) {
     final player = game.currentPlayer;
     int penalty;
 
-    switch (penaltyType) {
-      case ActionType.wrongBallContact:
-        penalty = AppConstants.wrongBallContactPenalty;
-      case ActionType.cueBallScratch:
-        penalty = AppConstants.cueBallScratchPenalty;
-      case ActionType.ballTouched:
-        penalty = AppConstants.ballTouchedPenalty;
-      case ActionType.ballJumpedOff:
-        penalty = AppConstants.ballJumpedOffPenalty;
-      case ActionType.cueBallJumpedOff:
-        penalty = AppConstants.cueBallJumpedOffPenalty;
-      case ActionType.carryBall:
-        penalty = AppConstants.carryBallPenalty;
-      default:
-        penalty = 0;
+    // Ball-specific penalties use the ball's point value
+    if (ballNumber != null &&
+        (penaltyType == ActionType.wrongBallContact ||
+         penaltyType == ActionType.ballTouched ||
+         penaltyType == ActionType.ballJumpedOff)) {
+      penalty = AppConstants.getBallValue(ballNumber);
+    } else {
+      switch (penaltyType) {
+        case ActionType.wrongBallContact:
+          penalty = AppConstants.wrongBallContactPenalty;
+        case ActionType.cueBallScratch:
+          penalty = AppConstants.cueBallScratchPenalty;
+        case ActionType.ballTouched:
+          penalty = AppConstants.ballTouchedPenalty;
+        case ActionType.ballJumpedOff:
+          penalty = AppConstants.ballJumpedOffPenalty;
+        case ActionType.cueBallJumpedOff:
+          penalty = AppConstants.cueBallJumpedOffPenalty;
+        case ActionType.carryBall:
+          penalty = AppConstants.carryBallPenalty;
+        default:
+          penalty = 0;
+      }
     }
 
     final action = GameAction(
@@ -200,6 +211,35 @@ class GameLogicService {
       }
     }
 
+    game.actions.add(action);
+    game.currentPlayerIndex = getNextPlayerIndex(game);
+    return action;
+  }
+
+  /// Apply a miss: deduct the current target ball's value and advance turn
+  static GameAction applyMiss(Game game) {
+    final player = game.currentPlayer;
+    final ball = game.currentTargetBall;
+    if (ball == -1) return _createNoOpAction(game);
+
+    final penalty = AppConstants.getBallValue(ball);
+
+    final action = GameAction(
+      id: _uuid.v4(),
+      gameId: game.id,
+      playerId: player.id,
+      type: ActionType.miss,
+      ballNumber: ball,
+      pointsChange: -penalty,
+      timestamp: DateTime.now(),
+      description: '${player.name} missed ball $ball (-$penalty)',
+      previousScore: player.score,
+      previousCurrentBallIndex: game.currentBallSequenceIndex,
+      previousRemainingBalls: List.from(game.remainingBalls),
+      previousPocketedBalls: List.from(game.pocketedBalls),
+    );
+
+    player.score -= penalty;
     game.actions.add(action);
     game.currentPlayerIndex = getNextPlayerIndex(game);
     return action;
@@ -234,41 +274,62 @@ class GameLogicService {
     return eliminated;
   }
 
-  /// Apply handicap: deduct points from leader when a player is eliminated
-  static GameAction? applyHandicap(Game game, Player eliminatedPlayer) {
+  /// Check if any eliminated players can re-enter the game.
+  /// A player re-enters if their score + remaining balls value >= leader's score
+  /// (meaning they could potentially tie or beat the leader).
+  static List<Player> checkReEntries(Game game) {
+    final reEntered = <Player>[];
     final activePlayers = game.activePlayers;
-    if (activePlayers.isEmpty) return null;
 
-    // Find the leader
+    if (activePlayers.isEmpty) return reEntered;
+
     final leader =
         activePlayers.reduce((a, b) => a.score >= b.score ? a : b);
+    final remainingValue = game.remainingBallsValue;
 
-    // Calculate: how many points does the eliminated player need to tie/win?
-    final deficit = leader.score - eliminatedPlayer.score;
-    if (deficit <= 0) return null;
+    for (final player in game.players) {
+      if (!player.isEliminated) continue;
 
-    // Deduct the deficit from the leader
-    final handicapPoints = deficit;
+      // If eliminated player can now tie or beat the leader with remaining balls
+      if (player.score + remainingValue >= leader.score) {
+        player.isEliminated = false;
+        player.eliminatedAtRound = null;
+        reEntered.add(player);
+      }
+    }
 
-    final action = GameAction(
-      id: _uuid.v4(),
-      gameId: game.id,
-      playerId: leader.id,
-      type: ActionType.handicapAdjustment,
-      pointsChange: -handicapPoints,
-      timestamp: DateTime.now(),
-      description:
-          'Handicap: ${leader.name} -$handicapPoints (${eliminatedPlayer.name} eliminated)',
-      previousScore: leader.score,
-      previousCurrentBallIndex: game.currentBallSequenceIndex,
-      previousRemainingBalls: List.from(game.remainingBalls),
-      previousPocketedBalls: List.from(game.pocketedBalls),
-    );
+    return reEntered;
+  }
 
-    leader.score -= handicapPoints;
-    game.actions.add(action);
+  /// Check if the current target ball is a "money ball" for the leader.
+  /// Returns the leader if pocketing the current ball would clinch an
+  /// unbeatable win for them, otherwise returns null.
+  static Player? checkMoneyBall(Game game) {
+    final activePlayers = game.activePlayers;
+    if (activePlayers.length < 2) return null;
 
-    return action;
+    final ball = game.currentTargetBall;
+    if (ball <= 0) return null;
+
+    final ballValue = AppConstants.getBallValue(ball);
+    final remainingAfter = game.remainingBallsValue - ballValue;
+
+    // Sort by score descending
+    final sorted = List<Player>.from(activePlayers)
+      ..sort((a, b) => b.score.compareTo(a.score));
+
+    final leader = sorted[0];
+    final leaderNewScore = leader.score + ballValue;
+
+    // Check if every other player can't catch the leader even with all
+    // remaining balls (after this one is pocketed)
+    for (int i = 1; i < sorted.length; i++) {
+      if (sorted[i].score + remainingAfter >= leaderNewScore) {
+        return null; // Someone can still catch up
+      }
+    }
+
+    return leader;
   }
 
   /// Check for early win condition

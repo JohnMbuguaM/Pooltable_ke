@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/action.dart';
+import '../utils/constants.dart';
 import '../utils/theme.dart';
 
 class ActionButtons extends StatelessWidget {
   final VoidCallback onPocket;
   final VoidCallback onMiss;
+  final VoidCallback onNextPlayer;
   final Function(int ball) onCombo;
   final VoidCallback onNeutral;
-  final Function(ActionType type) onPenalty;
+  final Function(ActionType type, {int? ballNumber}) onPenalty;
   final VoidCallback onUndo;
   final bool canUndo;
   final List<int> remainingBalls;
@@ -17,6 +19,7 @@ class ActionButtons extends StatelessWidget {
     super.key,
     required this.onPocket,
     required this.onMiss,
+    required this.onNextPlayer,
     required this.onCombo,
     required this.onNeutral,
     required this.onPenalty,
@@ -50,9 +53,21 @@ class ActionButtons extends StatelessWidget {
             Expanded(
               child: _PrimaryActionButton(
                 label: 'Miss',
+                sublabel: currentTargetBall != null
+                    ? '-${AppConstants.getBallValue(currentTargetBall!)} pts'
+                    : null,
                 icon: Icons.close_rounded,
-                color: Colors.grey.shade600,
+                color: Colors.red.shade400,
                 onTap: onMiss,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _PrimaryActionButton(
+                label: 'Next',
+                icon: Icons.skip_next_rounded,
+                color: Colors.grey.shade600,
+                onTap: onNextPlayer,
               ),
             ),
           ],
@@ -114,7 +129,7 @@ class ActionButtons extends StatelessWidget {
             _FoulChip(
               label: 'Wrong Ball',
               icon: Icons.error_outline,
-              onTap: () => onPenalty(ActionType.wrongBallContact),
+              onTap: () => _showWrongBallDialog(context),
             ),
             _FoulChip(
               label: 'Scratch',
@@ -124,7 +139,7 @@ class ActionButtons extends StatelessWidget {
             _FoulChip(
               label: 'Touch',
               icon: Icons.pan_tool_outlined,
-              onTap: () => onPenalty(ActionType.ballTouched),
+              onTap: () => _showTouchFoulDialog(context),
             ),
             _FoulChip(
               label: 'Ball Off',
@@ -148,11 +163,9 @@ class ActionButtons extends StatelessWidget {
   }
 
   void _showComboDialog(BuildContext context) {
-    final comboBalls =
-        remainingBalls.where((b) => b != currentTargetBall).toList();
-    if (comboBalls.isEmpty) {
+    if (remainingBalls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No other balls available for combo')),
+        const SnackBar(content: Text('No balls available for combo')),
       );
       return;
     }
@@ -181,13 +194,111 @@ class ActionButtons extends StatelessWidget {
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: comboBalls.map((ball) {
+                children: remainingBalls.map((ball) {
                   return ActionChip(
                     label: Text('Ball $ball',
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     onPressed: () {
                       Navigator.pop(ctx);
                       onCombo(ball);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showWrongBallDialog(BuildContext context) {
+    if (remainingBalls.isEmpty) {
+      onPenalty(ActionType.wrongBallContact);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Which ball was hit?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: remainingBalls.map((ball) {
+                  return ActionChip(
+                    label: Text('Ball $ball',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      onPenalty(ActionType.wrongBallContact, ballNumber: ball);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTouchFoulDialog(BuildContext context) {
+    if (remainingBalls.isEmpty) {
+      onPenalty(ActionType.ballTouched);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Which ball was touched?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: remainingBalls.map((ball) {
+                  return ActionChip(
+                    label: Text('Ball $ball',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      onPenalty(ActionType.ballTouched, ballNumber: ball);
                     },
                   );
                 }).toList(),
@@ -236,7 +347,7 @@ class ActionButtons extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     onPressed: () {
                       Navigator.pop(ctx);
-                      onPenalty(ActionType.ballJumpedOff);
+                      onPenalty(ActionType.ballJumpedOff, ballNumber: ball);
                     },
                   );
                 }).toList(),

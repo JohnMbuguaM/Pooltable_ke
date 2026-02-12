@@ -10,6 +10,7 @@ enum ActionType {
   bothJumpedOff,
   carryBall,
   handicapAdjustment,
+  miss,
 }
 
 extension ActionTypeExtension on ActionType {
@@ -37,6 +38,8 @@ extension ActionTypeExtension on ActionType {
         return 'Carry';
       case ActionType.handicapAdjustment:
         return 'Handicap';
+      case ActionType.miss:
+        return 'Miss';
     }
   }
 
@@ -64,6 +67,8 @@ extension ActionTypeExtension on ActionType {
         return 'Ball was carried (pushed twice)';
       case ActionType.handicapAdjustment:
         return 'Points deducted from leader (handicap)';
+      case ActionType.miss:
+        return 'Missed the target ball';
     }
   }
 
@@ -99,6 +104,8 @@ extension ActionTypeExtension on ActionType {
         return 'swipe';
       case ActionType.handicapAdjustment:
         return 'balance';
+      case ActionType.miss:
+        return 'close';
     }
   }
 }

@@ -16,6 +16,7 @@ void main() {
         expect(ActionType.bothJumpedOff.label, 'Both Off');
         expect(ActionType.carryBall.label, 'Carry');
         expect(ActionType.handicapAdjustment.label, 'Handicap');
+        expect(ActionType.miss.label, 'Miss');
       });
     });
 
