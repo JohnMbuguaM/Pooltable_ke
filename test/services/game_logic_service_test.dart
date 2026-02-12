@@ -33,6 +33,67 @@ void main() {
 
   group('GameLogicService', () {
     // ==========================================
+    //  Penalty Application - Player Selection Bug
+    // ==========================================
+    group('applyPenalty with manual player selection', () {
+      test('deducts from selected player, not next player', () {
+        // Bug scenario: 3 players, select second player (idx 1), apply foul
+        // Expected: penalty deducted from player at idx 1
+        // Bug: penalty deducted from player at idx 2
+        final alice = makePlayer('p1', 'Alice', score: 20);
+        final bob = makePlayer('p2', 'Bob', score: 30);
+        final charlie = makePlayer('p3', 'Charlie', score: 15);
+
+        final game = makeGame(
+          players: [alice, bob, charlie],
+          currentPlayerIndex: 0, // Alice's turn initially
+        );
+
+        // User manually selects Bob (index 1)
+        game.currentPlayerIndex = 1;
+
+        // Verify Bob is current player
+        expect(game.currentPlayer.id, 'p2');
+        expect(bob.score, 30);
+
+        // Apply carry foul
+        final action = GameLogicService.applyPenalty(game, ActionType.carryBall);
+
+        // Penalty should be deducted from BOB (player at index 1), not Charlie (index 2)
+        expect(action.playerId, 'p2', reason: 'Action should be recorded for Bob');
+        expect(bob.score, 24, reason: 'Bob should lose 6 points');
+        expect(charlie.score, 15, reason: 'Charlie should NOT lose points');
+        expect(alice.score, 20, reason: 'Alice should NOT lose points');
+
+        // Turn should advance to Charlie after penalty
+        expect(game.currentPlayerIndex, 2);
+      });
+
+      test('deducts from current player when it is naturally second player\'s turn', () {
+        final alice = makePlayer('p1', 'Alice', score: 20);
+        final bob = makePlayer('p2', 'Bob', score: 30);
+        final charlie = makePlayer('p3', 'Charlie', score: 15);
+
+        final game = makeGame(
+          players: [alice, bob, charlie],
+          currentPlayerIndex: 1, // Bob's turn (second player)
+        );
+
+        // Verify Bob is current player
+        expect(game.currentPlayer.id, 'p2');
+
+        // Apply carry foul
+        final action = GameLogicService.applyPenalty(game, ActionType.carryBall);
+
+        // Penalty should be deducted from BOB
+        expect(action.playerId, 'p2');
+        expect(bob.score, 24);
+        expect(charlie.score, 15);
+        expect(alice.score, 20);
+      });
+    });
+
+    // ==========================================
     //  getNextTargetBall
     // ==========================================
     group('getNextTargetBall', () {

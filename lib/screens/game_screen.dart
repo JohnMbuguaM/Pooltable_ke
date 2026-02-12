@@ -129,7 +129,7 @@ class GameScreen extends StatelessWidget {
           // Scoreboard (tap to select player - TURN badge shows current)
           Scoreboard(
             game: game,
-            onPlayerTap: (index) => provider.selectPlayer(index),
+            onPlayerTap: (index) async => await provider.selectPlayer(index),
           ),
           const SizedBox(height: 14),
 
@@ -476,6 +476,52 @@ class _GameOverViewState extends State<_GameOverView>
                   ),
                 ),
                 const SizedBox(height: 2),
+                // Special message for money ball wins
+                if (widget.provider.isMoneyBallWin) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.accentGold.withValues(alpha: 0.2),
+                          Colors.amber.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.accentGold.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.stars_rounded,
+                          color: AppTheme.accentGold,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'MONEY BALL VICTORY!',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.accentGold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.stars_rounded,
+                          color: AppTheme.accentGold,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 Text(
                   'Winner with ${winner.score} points!',
                   style: TextStyle(
@@ -550,15 +596,28 @@ class _GameOverViewState extends State<_GameOverView>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    player.name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                      color: isWinner
-                                          ? AppTheme.accentGold
-                                          : null,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        player.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: isWinner
+                                              ? AppTheme.accentGold
+                                              : null,
+                                        ),
+                                      ),
+                                      // Money ball icon for winner
+                                      if (isWinner && widget.provider.isMoneyBallWin) ...[
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          Icons.stars_rounded,
+                                          size: 16,
+                                          color: AppTheme.accentGold,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   if (player.isEliminated)
                                     Text(
