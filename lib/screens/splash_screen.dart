@@ -366,6 +366,16 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 140,
+                    height: 140,
+                    fit: BoxFit.cover,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'ABDUL TECH SOLUTION',
