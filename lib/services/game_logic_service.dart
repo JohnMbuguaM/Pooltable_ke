@@ -335,7 +335,16 @@ class GameLogicService {
   /// Check for early win condition
   static bool checkEarlyWin(Game game) {
     final activePlayers = game.activePlayers;
-    if (activePlayers.length <= 1) return true;
+
+    // If only one or zero active players left, game is over
+    if (activePlayers.length <= 1) {
+      game.status = GameStatus.completed;
+      if (activePlayers.length == 1) {
+        game.winnerId = activePlayers.first.id;
+      }
+      game.completedAt = DateTime.now();
+      return true;
+    }
 
     final remainingValue = game.remainingBallsValue;
 

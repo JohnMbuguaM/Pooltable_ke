@@ -1015,6 +1015,25 @@ void main() {
         expect(GameLogicService.checkEarlyWin(game), true);
       });
 
+      test('sets game status to completed when only one active player remains', () {
+        final players = [
+          makePlayer('p1', 'Alice', score: 50),
+          makePlayer('p2', 'Bob', score: 10, eliminated: true),
+          makePlayer('p3', 'Charlie', score: 5, eliminated: true),
+        ];
+        final game = makeGame(players: players);
+
+        // Before check, game should be active
+        expect(game.status, GameStatus.active);
+
+        GameLogicService.checkEarlyWin(game);
+
+        // After check, game should be completed with Alice as winner
+        expect(game.status, GameStatus.completed);
+        expect(game.winnerId, 'p1');
+        expect(game.completedAt, isNotNull);
+      });
+
       test('does not declare early win when exactly tied with remaining balls', () {
         final players = [
           makePlayer('p1', 'Alice', score: 10),
