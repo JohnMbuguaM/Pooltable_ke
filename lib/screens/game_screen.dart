@@ -224,71 +224,112 @@ class _ActionHistorySectionState extends State<_ActionHistorySection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header - tap to expand/collapse
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.charcoalCard,
+            AppTheme.charcoalOverlay.withValues(alpha: 0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.deepEmerald.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header - tap to expand/collapse
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
               borderRadius: _expanded
-                  ? const BorderRadius.vertical(top: Radius.circular(12))
-                  : BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.history_rounded,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.secondary),
-                const SizedBox(width: 6),
-                const Text(
-                  'Action Log',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                  ? const BorderRadius.vertical(top: Radius.circular(20))
+                  : BorderRadius.circular(20),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.deepEmerald.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.history_rounded,
+                        size: 18,
+                        color: AppTheme.premiumGold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'ACTION LOG',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.premiumGold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.premiumGold.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        '${widget.game.actions.length}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.premiumGold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      child: Icon(
+                        Icons.expand_more_rounded,
+                        size: 22,
+                        color: AppTheme.premiumGold.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  '(${widget.game.actions.length})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.4),
-                  ),
-                ),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    size: 20,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-        // Expandable content
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(12)),
+          // Expandable content
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Container(
+              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+              child: ActionHistory(actions: widget.game.actions),
             ),
-            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-            child: ActionHistory(actions: widget.game.actions),
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
           ),
-          crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -305,48 +346,84 @@ class _MoneyBallBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            AppTheme.accentGold.withValues(alpha: 0.25),
-            AppTheme.accentGold.withValues(alpha: 0.08),
+            AppTheme.premiumGold.withValues(alpha: 0.3),
+            AppTheme.goldDim.withValues(alpha: 0.15),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.accentGold.withValues(alpha: 0.5),
+          color: AppTheme.premiumGold.withValues(alpha: 0.6),
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.premiumGold.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(Icons.local_fire_department_rounded,
-              color: AppTheme.accentGold, size: 22),
-          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppTheme.premiumGold, AppTheme.goldHighlight],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.premiumGold.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.local_fire_department_rounded,
+              color: AppTheme.charcoalBase,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 13, height: 1.3),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  letterSpacing: 0.3,
+                ),
                 children: [
                   const TextSpan(
-                    text: 'Money Ball! ',
+                    text: 'MONEY BALL! ',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentGold,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.premiumGold,
+                      letterSpacing: 1.0,
                     ),
                   ),
                   TextSpan(
                     text: 'Ball $ballNumber wins it for ',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                   TextSpan(
-                    text: leaderName,
+                    text: leaderName.toUpperCase(),
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentGold,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.premiumGold,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ],
@@ -436,105 +513,137 @@ class _GameOverViewState extends State<_GameOverView>
           child: Column(
             children: [
               const SizedBox(height: 12),
-              // Trophy icon with scale animation
+              // Premium Trophy icon with scale animation
               ScaleTransition(
                 scale: _showCelebration
                     ? _trophyScale
                     : const AlwaysStoppedAnimation(1.0),
                 child: Container(
-                  width: 72,
-                  height: 72,
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppTheme.accentGold, Color(0xFFFF8F00)],
+                      colors: [AppTheme.premiumGold, AppTheme.goldDim],
                     ),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.accentGold.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        spreadRadius: 2,
+                        color: AppTheme.premiumGold.withValues(alpha: 0.5),
+                        blurRadius: 32,
+                        spreadRadius: 4,
+                      ),
+                      BoxShadow(
+                        color: AppTheme.premiumGold.withValues(alpha: 0.3),
+                        blurRadius: 64,
+                        spreadRadius: 8,
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.emoji_events_rounded,
-                    size: 40,
-                    color: Colors.white,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.goldHighlight.withValues(alpha: 0.6),
+                        width: 3,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.emoji_events_rounded,
+                      size: 52,
+                      color: AppTheme.charcoalBase,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               if (winner != null) ...[
-                Text(
-                  winner.name,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [AppTheme.premiumGold, AppTheme.goldHighlight],
+                  ).createShader(bounds),
+                  child: Text(
+                    winner.name.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 8),
                 // Special message for money ball wins
                 if (widget.provider.isMoneyBallWin) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppTheme.accentGold.withValues(alpha: 0.2),
-                          Colors.amber.withValues(alpha: 0.1),
+                          AppTheme.premiumGold.withValues(alpha: 0.3),
+                          AppTheme.goldDim.withValues(alpha: 0.15),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppTheme.accentGold.withValues(alpha: 0.3),
-                        width: 1.5,
+                        color: AppTheme.premiumGold.withValues(alpha: 0.5),
+                        width: 2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.premiumGold.withValues(alpha: 0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.stars_rounded,
-                          color: AppTheme.accentGold,
-                          size: 20,
+                          color: AppTheme.premiumGold,
+                          size: 24,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           'MONEY BALL VICTORY!',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.accentGold,
-                            letterSpacing: 0.5,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.premiumGold,
+                            letterSpacing: 1.5,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Icon(
                           Icons.stars_rounded,
-                          color: AppTheme.accentGold,
-                          size: 20,
+                          color: AppTheme.premiumGold,
+                          size: 24,
                         ),
                       ],
                     ),
                   ),
                 ],
                 Text(
-                  'Winner with ${winner.score} points!',
+                  'WINNER WITH ${winner.score} POINTS!',
                   style: TextStyle(
-                    fontSize: 15,
-                    color: AppTheme.accentGold.withValues(alpha: 0.8),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: AppTheme.premiumGold.withValues(alpha: 0.9),
                   ),
                 ),
               ] else ...[
                 const Text(
-                  'Game Over',
+                  'GAME OVER',
                   style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
                   ),
                 ),
               ],
@@ -557,22 +666,63 @@ class _GameOverViewState extends State<_GameOverView>
 
               // Final standings
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardTheme.color,
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.charcoalCard,
+                      AppTheme.charcoalOverlay.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: AppTheme.deepEmerald.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.deepEmerald.withValues(alpha: 0.2),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Final Standings',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.premiumGold.withValues(alpha: 0.3),
+                                AppTheme.premiumGold.withValues(alpha: 0.1),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.leaderboard_rounded,
+                            size: 20,
+                            color: AppTheme.premiumGold,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'FINAL STANDINGS',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     ...sortedPlayers.asMap().entries.map((entry) {
                       final idx = entry.key;
                       final player = entry.value;
