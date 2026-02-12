@@ -132,11 +132,6 @@ class ActionButtons extends StatelessWidget {
               onTap: () => _showWrongBallDialog(context),
             ),
             _FoulChip(
-              label: 'Scratch',
-              icon: Icons.lens_outlined,
-              onTap: () => onPenalty(ActionType.cueBallScratch),
-            ),
-            _FoulChip(
               label: 'Touch',
               icon: Icons.pan_tool_outlined,
               onTap: () => _showTouchFoulDialog(context),

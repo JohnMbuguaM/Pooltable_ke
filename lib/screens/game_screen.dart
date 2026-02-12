@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
@@ -43,7 +44,7 @@ class GameScreen extends StatelessWidget {
         return Scaffold(
           appBar: _buildAppBar(context, game, provider),
           body: game.isGameOver
-              ? _buildGameOverView(context, game, provider)
+              ? _GameOverView(game: game, provider: provider)
               : _buildGameView(context, game, provider),
         );
       },
@@ -152,242 +153,6 @@ class GameScreen extends StatelessWidget {
           if (game.actions.isNotEmpty) _ActionHistorySection(game: game),
           const SizedBox(height: 16),
         ],
-      ),
-    );
-  }
-
-  Widget _buildGameOverView(
-      BuildContext context, Game game, GameProvider provider) {
-    final winner = game.winnerId != null
-        ? game.players.firstWhere((p) => p.id == game.winnerId)
-        : null;
-
-    final sortedPlayers = List.from(game.players)
-      ..sort((a, b) => b.score.compareTo(a.score));
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          // Trophy icon
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.accentGold, Color(0xFFFF8F00)],
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.accentGold.withValues(alpha: 0.4),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.emoji_events_rounded,
-              size: 40,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (winner != null) ...[
-            Text(
-              winner.name,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Winner with ${winner.score} points!',
-              style: TextStyle(
-                fontSize: 15,
-                color: AppTheme.accentGold.withValues(alpha: 0.8),
-              ),
-            ),
-          ] else ...[
-            const Text(
-              'Game Over',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-          if (game.status == GameStatus.abandoned) ...[
-            const SizedBox(height: 4),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Game Abandoned',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-
-          // Final standings
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Final Standings',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...sortedPlayers.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final player = entry.value;
-                  final isWinner = player.id == game.winnerId;
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 12),
-                    margin: const EdgeInsets.only(bottom: 4),
-                    decoration: BoxDecoration(
-                      color: isWinner
-                          ? AppTheme.accentGold.withValues(alpha: 0.08)
-                          : null,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildRankBadge(idx + 1),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                player.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                  color: isWinner
-                                      ? AppTheme.accentGold
-                                      : null,
-                                ),
-                              ),
-                              if (player.isEliminated)
-                                Text(
-                                  'Eliminated',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color:
-                                        Colors.red.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '${player.score}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color:
-                                isWinner ? AppTheme.accentGold : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.home_rounded),
-                  label: const Text('Home'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RematchSetupScreen(
-                          previousGame: game,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.replay_rounded),
-                  label: const Text('Play Again'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankBadge(int rank) {
-    Color color;
-    IconData? icon;
-    switch (rank) {
-      case 1:
-        color = AppTheme.accentGold;
-        icon = Icons.emoji_events_rounded;
-      case 2:
-        color = Colors.grey.shade400;
-        icon = Icons.emoji_events_rounded;
-      case 3:
-        color = const Color(0xFFCD7F32);
-        icon = Icons.emoji_events_rounded;
-      default:
-        color = Colors.grey.shade600;
-        icon = null;
-    }
-
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: icon != null
-            ? Icon(icon, size: 18, color: color)
-            : Text(
-                '$rank',
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }
@@ -592,4 +357,402 @@ class _MoneyBallBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+// ==========================================================
+//  GAME OVER VIEW WITH CELEBRATION
+// ==========================================================
+
+class _GameOverView extends StatefulWidget {
+  final Game game;
+  final GameProvider provider;
+
+  const _GameOverView({required this.game, required this.provider});
+
+  @override
+  State<_GameOverView> createState() => _GameOverViewState();
+}
+
+class _GameOverViewState extends State<_GameOverView>
+    with TickerProviderStateMixin {
+  late AnimationController _confettiController;
+  late AnimationController _trophyController;
+  late Animation<double> _trophyScale;
+  late List<_ConfettiParticle> _particles;
+  final _random = Random();
+
+  bool get _showCelebration =>
+      widget.game.winnerId != null &&
+      widget.game.status != GameStatus.abandoned;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
+
+    _trophyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _trophyScale = CurvedAnimation(
+      parent: _trophyController,
+      curve: Curves.elasticOut,
+    );
+
+    _particles = List.generate(50, (_) => _ConfettiParticle(_random));
+
+    if (_showCelebration) {
+      _trophyController.forward();
+      _confettiController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    _trophyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final game = widget.game;
+    final winner = game.winnerId != null
+        ? game.players.firstWhere((p) => p.id == game.winnerId)
+        : null;
+
+    final sortedPlayers = List.from(game.players)
+      ..sort((a, b) => b.score.compareTo(a.score));
+
+    return Stack(
+      children: [
+        // Content
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              // Trophy icon with scale animation
+              ScaleTransition(
+                scale: _showCelebration
+                    ? _trophyScale
+                    : const AlwaysStoppedAnimation(1.0),
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppTheme.accentGold, Color(0xFFFF8F00)],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentGold.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    size: 40,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (winner != null) ...[
+                Text(
+                  winner.name,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Winner with ${winner.score} points!',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: AppTheme.accentGold.withValues(alpha: 0.8),
+                  ),
+                ),
+              ] else ...[
+                const Text(
+                  'Game Over',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+              if (game.status == GameStatus.abandoned) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Game Abandoned',
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+
+              // Final standings
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardTheme.color,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Final Standings',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...sortedPlayers.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final player = entry.value;
+                      final isWinner = player.id == game.winnerId;
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        decoration: BoxDecoration(
+                          color: isWinner
+                              ? AppTheme.accentGold.withValues(alpha: 0.08)
+                              : null,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildRankBadge(idx + 1),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    player.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                      color: isWinner
+                                          ? AppTheme.accentGold
+                                          : null,
+                                    ),
+                                  ),
+                                  if (player.isEliminated)
+                                    Text(
+                                      'Eliminated',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color:
+                                            Colors.red.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '${player.score}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: isWinner ? AppTheme.accentGold : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.home_rounded),
+                      label: const Text('Home'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RematchSetupScreen(
+                              previousGame: game,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.replay_rounded),
+                      label: const Text('Play Again'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Confetti overlay
+        if (_showCelebration)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _confettiController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _ConfettiPainter(
+                      particles: _particles,
+                      progress: _confettiController.value,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRankBadge(int rank) {
+    Color color;
+    IconData? icon;
+    switch (rank) {
+      case 1:
+        color = AppTheme.accentGold;
+        icon = Icons.emoji_events_rounded;
+      case 2:
+        color = Colors.grey.shade400;
+        icon = Icons.emoji_events_rounded;
+      case 3:
+        color = const Color(0xFFCD7F32);
+        icon = Icons.emoji_events_rounded;
+      default:
+        color = Colors.grey.shade600;
+        icon = null;
+    }
+
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: icon != null
+            ? Icon(icon, size: 18, color: color)
+            : Text(
+                '$rank',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+//  CONFETTI ANIMATION
+// ==========================================================
+
+class _ConfettiParticle {
+  final double x; // 0..1 horizontal position
+  final double speed; // fall speed multiplier
+  final double size;
+  final double drift; // horizontal drift
+  final double rotationSpeed;
+  final Color color;
+
+  _ConfettiParticle(Random rng)
+      : x = rng.nextDouble(),
+        speed = 0.5 + rng.nextDouble() * 0.8,
+        size = 4 + rng.nextDouble() * 6,
+        drift = (rng.nextDouble() - 0.5) * 0.15,
+        rotationSpeed = rng.nextDouble() * 4,
+        color = _colors[rng.nextInt(_colors.length)];
+
+  static const _colors = [
+    Color(0xFFFFD700), // gold
+    Color(0xFFFF6B6B), // red
+    Color(0xFF48DBFB), // blue
+    Color(0xFF1DD1A1), // green
+    Color(0xFFFECA57), // yellow
+    Color(0xFFFF9FF3), // pink
+    Color(0xFFFF8C00), // orange
+    Color(0xFFA29BFE), // purple
+  ];
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_ConfettiParticle> particles;
+  final double progress;
+
+  _ConfettiPainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Fade out in the last 30%
+    final opacity = progress > 0.7 ? (1.0 - progress) / 0.3 : 1.0;
+    if (opacity <= 0) return;
+
+    for (final p in particles) {
+      final px = (p.x + p.drift * progress) * size.width;
+      final py = -20 + progress * (size.height + 40) * p.speed;
+
+      if (py < -20 || py > size.height + 20) continue;
+
+      final paint = Paint()
+        ..color = p.color.withValues(alpha: opacity * 0.9);
+
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.rotate(progress * p.rotationSpeed * pi);
+
+      // Draw a small rectangle for confetti piece
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.6),
+          const Radius.circular(1),
+        ),
+        paint,
+      );
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
 }
