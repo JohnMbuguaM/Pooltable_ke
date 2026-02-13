@@ -58,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _refreshData() async {
+    final provider = context.read<GameProvider>();
+    await Future.wait([
+      provider.loadActiveGames(),
+      provider.loadGameHistory(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,8 +125,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: CustomScrollView(
-          slivers: [
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          child: CustomScrollView(
+            slivers: [
             // Logo section
             SliverToBoxAdapter(
               child: Padding(
@@ -186,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToNewGame(context),
         icon: const Icon(Icons.add_rounded),
