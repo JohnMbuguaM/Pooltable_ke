@@ -22,6 +22,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  // null = "Today", otherwise number of last games
+  int? _gameCountFilter = 10;
+  static const _filterOptions = [
+    (label: 'Today', value: null),
+    (label: 'Last 3', value: 3),
+    (label: 'Last 5', value: 5),
+    (label: 'Last 10', value: 10),
+    (label: 'Last 15', value: 15),
+    (label: 'Last 20', value: 20),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -50,101 +61,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(child: _buildHeader(context)),
-
-              // Active Games
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: _buildSectionHeader('Active Games', Icons.play_circle),
-                ),
-              ),
-              _buildActiveGames(context),
-
-              // Recent Games
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child:
-                      _buildSectionHeader('Recent Games', Icons.history_rounded),
-                ),
-              ),
-              _buildRecentGames(context),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToNewGame(context),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Game'),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: [
-          // Logo area
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Image.asset(
-              'assets/images/logo.png',
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ChalkMan',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Max Game Scorer',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
+      appBar: AppBar(
+        backgroundColor: AppTheme.feltGreen,
+        elevation: 0,
+        title: const Text('ChalkMan'),
+        actions: [
           IconButton(
-            onPressed: () => themeProvider.toggleTheme(),
+            onPressed: () => context.read<ThemeProvider>().toggleTheme(),
             icon: Icon(
-              themeProvider.isDark
+              context.watch<ThemeProvider>().isDark
                   ? Icons.light_mode_rounded
                   : Icons.dark_mode_rounded,
-              color: Theme.of(context).colorScheme.secondary,
             ),
           ),
           PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
+            icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) {
               switch (value) {
                 case 'history':
@@ -183,6 +114,82 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ],
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: CustomScrollView(
+          slivers: [
+            // Logo section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ChalkMan',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Pool Score Tracker',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+              // Active Games
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: _buildSectionHeader('Active Games', Icons.play_circle),
+                ),
+              ),
+              _buildActiveGames(context),
+
+              // Statistics
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: _buildSectionHeader('Statistics', Icons.insights_rounded),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _buildFilterChips(),
+              ),
+              _buildStatistics(context),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
+        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _navigateToNewGame(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Game'),
       ),
     );
   }
@@ -240,37 +247,198 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildRecentGames(BuildContext context) {
+  Widget _buildFilterChips() {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        itemCount: _filterOptions.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final option = _filterOptions[index];
+          final isSelected = _gameCountFilter == option.value;
+          return ChoiceChip(
+            label: Text(option.label),
+            selected: isSelected,
+            onSelected: (_) => setState(() => _gameCountFilter = option.value),
+            labelStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+            selectedColor: AppTheme.feltGreen,
+            backgroundColor: Theme.of(context).cardTheme.color,
+            side: BorderSide(
+              color: isSelected ? AppTheme.feltGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            visualDensity: VisualDensity.compact,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatistics(BuildContext context) {
     return Consumer<GameProvider>(
       builder: (context, provider, _) {
-        final completedGames = provider.gameHistory
-            .where((g) => g.status != GameStatus.active)
-            .take(5)
-            .toList();
+        final allCompleted = provider.gameHistory
+            .where((g) => g.status == GameStatus.completed);
+
+        final List<Game> completedGames;
+        if (_gameCountFilter == null) {
+          // "Today" filter
+          final now = DateTime.now();
+          final startOfDay = DateTime(now.year, now.month, now.day);
+          completedGames = allCompleted
+              .where((g) => g.createdAt.isAfter(startOfDay))
+              .toList();
+        } else {
+          completedGames = allCompleted.take(_gameCountFilter!).toList();
+        }
 
         if (completedGames.isEmpty) {
-          return SliverToBoxAdapter(
+          return const SliverToBoxAdapter(
             child: _EmptyState(
-              icon: Icons.history_rounded,
+              icon: Icons.insights_rounded,
               message: 'No completed games yet',
+              submessage: 'Stats will appear after your first game',
             ),
           );
         }
 
-        return SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _GameCard(
-                  game: completedGames[index],
-                  isCompleted: true,
-                  onTap: () =>
-                      _navigateToGame(context, completedGames[index]),
+        // Compute stats
+        final gamesPlayed = completedGames.length;
+
+        // Win counts per player name
+        final winCounts = <String, int>{};
+        int totalWinScore = 0;
+        int winnerCount = 0;
+        for (final game in completedGames) {
+          if (game.winnerId != null) {
+            try {
+              final winner =
+                  game.players.firstWhere((p) => p.id == game.winnerId);
+              winCounts[winner.name] =
+                  (winCounts[winner.name] ?? 0) + 1;
+              totalWinScore += winner.score;
+              winnerCount++;
+            } catch (_) {}
+          }
+        }
+        final avgWinScore =
+            winnerCount > 0 ? (totalWinScore / winnerCount).round() : 0;
+
+        // Top winner
+        String topWinner = '-';
+        int topWins = 0;
+        winCounts.forEach((name, count) {
+          if (count > topWins) {
+            topWins = count;
+            topWinner = name;
+          }
+        });
+
+        // Most active player (appears in most games)
+        final appearCounts = <String, int>{};
+        for (final game in completedGames) {
+          for (final player in game.players) {
+            appearCounts[player.name] =
+                (appearCounts[player.name] ?? 0) + 1;
+          }
+        }
+        String mostActive = '-';
+        int mostActiveCount = 0;
+        appearCounts.forEach((name, count) {
+          if (count > mostActiveCount) {
+            mostActiveCount = count;
+            mostActive = name;
+          }
+        });
+
+        // Sorted leaderboard entries
+        final leaderboard = winCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        return SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary stat cards
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        value: '$gamesPlayed',
+                        label: 'Played',
+                        icon: Icons.sports_esports_rounded,
+                        color: AppTheme.feltGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatCard(
+                        value: topWinner,
+                        label: '$topWins wins',
+                        icon: Icons.emoji_events_rounded,
+                        color: AppTheme.accentGold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatCard(
+                        value: '$avgWinScore',
+                        label: 'Avg Score',
+                        icon: Icons.trending_up_rounded,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              childCount: completedGames.length,
+                const SizedBox(height: 8),
+                // Most active row
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.local_fire_department_rounded,
+                          size: 16,
+                          color: Colors.orange.withValues(alpha: 0.7)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Most Active',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$mostActive ($mostActiveCount games)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Win leaderboard
+                if (leaderboard.isNotEmpty)
+                  _WinLeaderboard(entries: leaderboard),
+              ],
             ),
           ),
         );
@@ -289,22 +457,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final provider = context.read<GameProvider>();
     await provider.loadGame(game.id);
     if (context.mounted) {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const GameScreen()),
       );
+      // Reload games when returning from game screen
+      // This ensures completed games are moved from active to recent
+      if (context.mounted) {
+        await provider.loadActiveGames();
+        await provider.loadGameHistory();
+      }
     }
   }
 }
 
 class _GameCard extends StatelessWidget {
   final Game game;
-  final bool isCompleted;
   final VoidCallback onTap;
 
   const _GameCard({
     required this.game,
-    this.isCompleted = false,
     required this.onTap,
   });
 
@@ -322,21 +494,16 @@ class _GameCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // Status icon
               Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isCompleted
-                      ? Colors.blue.withValues(alpha: 0.1)
-                      : AppTheme.feltGreen.withValues(alpha: 0.1),
+                  color: AppTheme.feltGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  isCompleted
-                      ? Icons.emoji_events_rounded
-                      : Icons.play_arrow_rounded,
-                  color: isCompleted ? Colors.blue : AppTheme.feltGreen,
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: AppTheme.feltGreen,
                 ),
               ),
               const SizedBox(width: 12),
@@ -360,14 +527,14 @@ class _GameCard extends StatelessWidget {
                           Helpers.formatDateTime(game.createdAt),
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                         ),
                         if (leader != null) ...[
                           Text(
                             ' \u2022 ',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                               fontSize: 11,
                             ),
                           ),
@@ -390,11 +557,170 @@ class _GameCard extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WinLeaderboard extends StatelessWidget {
+  final List<MapEntry<String, int>> entries;
+
+  const _WinLeaderboard({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final maxWins = entries.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.leaderboard_rounded,
+                  size: 16,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+              const SizedBox(width: 6),
+              Text(
+                'Win Leaderboard',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...entries.take(5).map((entry) {
+            final fraction = maxWins > 0 ? entry.value / maxWins : 0.0;
+            final isTop = entry.key == entries.first.key;
+            final barColor =
+                isTop ? AppTheme.accentGold : AppTheme.feltGreen;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      entry.key,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            isTop ? FontWeight.w700 : FontWeight.w500,
+                        color: isTop
+                            ? AppTheme.accentGold
+                            : theme.colorScheme.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          children: [
+                            Container(
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: barColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            Container(
+                              height: 18,
+                              width: constraints.maxWidth * fraction,
+                              decoration: BoxDecoration(
+                                color: barColor.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${entry.value}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -418,12 +744,12 @@ class _EmptyState extends StatelessWidget {
       child: Center(
         child: Column(
           children: [
-            Icon(icon, size: 36, color: Colors.white.withValues(alpha: 0.15)),
+            Icon(icon, size: 36, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15)),
             const SizedBox(height: 8),
             Text(
               message,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                 fontSize: 14,
               ),
             ),
@@ -432,7 +758,7 @@ class _EmptyState extends StatelessWidget {
               Text(
                 submessage!,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
                   fontSize: 12,
                 ),
               ),
