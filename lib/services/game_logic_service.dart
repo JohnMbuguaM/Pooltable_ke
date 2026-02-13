@@ -114,36 +114,82 @@ class GameLogicService {
     return action;
   }
 
-  /// Apply a neutral shot (target + cue ball pocketed together, or both jump off)
-  static GameAction applyNeutralShot(Game game, {bool bothJumpedOff = false}) {
+  /// Apply a through shot (balls + cue ball pocketed together)
+  /// No points awarded because cue ball was also pocketed
+  static GameAction applyThroughShot(Game game, List<int> ballNumbers) {
     final player = game.currentPlayer;
-    final ball = game.currentTargetBall;
+    final ballsStr = ballNumbers.join(', ');
 
     final action = GameAction(
       id: _uuid.v4(),
       gameId: game.id,
       playerId: player.id,
-      type: bothJumpedOff ? ActionType.bothJumpedOff : ActionType.neutralShot,
-      ballNumber: ball != -1 ? ball : null,
+      type: ActionType.throughShot,
+      ballNumber: ballNumbers.isNotEmpty ? ballNumbers.first : null,
       pointsChange: 0,
       timestamp: DateTime.now(),
-      description: bothJumpedOff
-          ? '${player.name}: both balls jumped off (neutral)'
-          : '${player.name}: target + cue ball pocketed (neutral)',
+      description: '${player.name}: through shot - ball(s) $ballsStr + cue pocketed (0 pts)',
       previousScore: player.score,
       previousCurrentBallIndex: game.currentBallSequenceIndex,
       previousRemainingBalls: List.from(game.remainingBalls),
       previousPocketedBalls: List.from(game.pocketedBalls),
     );
 
-    // If it's a neutral pocket (not jump off), the target ball goes back on the table
-    // Actually per rules: target + cue ball pocketed = neutral, ball stays pocketed
-    // but no points. Let me re-read: "Neutral (no points): target ball + cue ball pocketed together"
-    // This means the ball IS pocketed but no points are awarded.
-    if (!bothJumpedOff && ball != -1) {
+    // No points awarded
+    // Pocket all the balls
+    for (final ball in ballNumbers) {
       game.remainingBalls.remove(ball);
       game.pocketedBalls.add(ball);
-      game.currentBallSequenceIndex = advanceBallSequenceIndex(game);
+
+      // If target ball was pocketed, advance the sequence
+      if (ball == game.currentTargetBall) {
+        game.currentBallSequenceIndex = advanceBallSequenceIndex(game);
+      }
+    }
+
+    game.actions.add(action);
+    // Player loses turn because cue ball was also pocketed
+    game.currentPlayerIndex = getNextPlayerIndex(game);
+    return action;
+  }
+
+  /// Apply a through + foul action.
+  /// The first ball in the list is the one the player touched first,
+  /// and its value is deducted as penalty. All selected balls are
+  /// removed from the table. Turn advances to the next player.
+  static GameAction applyThroughFoul(Game game, List<int> ballNumbers) {
+    final player = game.currentPlayer;
+    final penaltyBall = ballNumbers.first;
+    final penalty = AppConstants.getBallValue(penaltyBall);
+    final ballsStr = ballNumbers.join(', ');
+
+    final action = GameAction(
+      id: _uuid.v4(),
+      gameId: game.id,
+      playerId: player.id,
+      type: ActionType.throughFoul,
+      ballNumber: penaltyBall,
+      pointsChange: -penalty,
+      timestamp: DateTime.now(),
+      description:
+          '${player.name}: through + foul - ball(s) $ballsStr pocketed, penalty ball $penaltyBall (-$penalty pts)',
+      previousScore: player.score,
+      previousCurrentBallIndex: game.currentBallSequenceIndex,
+      previousRemainingBalls: List.from(game.remainingBalls),
+      previousPocketedBalls: List.from(game.pocketedBalls),
+    );
+
+    // Deduct penalty based on the first ball selected
+    player.score -= penalty;
+
+    // Remove all selected balls from the table
+    for (final ball in ballNumbers) {
+      game.remainingBalls.remove(ball);
+      game.pocketedBalls.add(ball);
+
+      if (ball == game.currentTargetBall) {
+        game.currentBallSequenceIndex = advanceBallSequenceIndex(game);
+      }
     }
 
     game.actions.add(action);
@@ -154,7 +200,8 @@ class GameLogicService {
   /// Apply a penalty action
   /// For ball-specific fouls (wrongBallContact, ballTouched, ballJumpedOff),
   /// the penalty is the value of the specific ball involved.
-  /// For non-ball fouls (scratch, cue off, carry), a flat penalty applies.
+  /// For cue ball scratch, penalty is the value of the current target ball.
+  /// For non-ball fouls (cue off, carry), a flat penalty applies.
   static GameAction applyPenalty(Game game, ActionType penaltyType,
       {int? ballNumber}) {
     final player = game.currentPlayer;
@@ -171,7 +218,8 @@ class GameLogicService {
         case ActionType.wrongBallContact:
           penalty = AppConstants.wrongBallContactPenalty;
         case ActionType.cueBallScratch:
-          penalty = AppConstants.cueBallScratchPenalty;
+          // Scratch penalty is the value of the current target ball
+          penalty = AppConstants.getBallValue(game.currentTargetBall);
         case ActionType.ballTouched:
           penalty = AppConstants.ballTouchedPenalty;
         case ActionType.ballJumpedOff:
@@ -179,7 +227,7 @@ class GameLogicService {
         case ActionType.cueBallJumpedOff:
           penalty = AppConstants.cueBallJumpedOffPenalty;
         case ActionType.carryBall:
-          penalty = AppConstants.carryBallPenalty;
+          penalty = AppConstants.getBallValue(game.currentTargetBall);
         default:
           penalty = 0;
       }
@@ -332,6 +380,41 @@ class GameLogicService {
     return leader;
   }
 
+  /// Check all players for whom the current target ball is their "money ball."
+  /// For each active player, check: if THIS player pockets the current ball,
+  /// would their new score be unbeatable by every OTHER active player?
+  static List<Player> checkMoneyBallPlayers(Game game) {
+    final activePlayers = game.activePlayers;
+    if (activePlayers.length < 2) return [];
+
+    final ball = game.currentTargetBall;
+    if (ball <= 0) return [];
+
+    final ballValue = AppConstants.getBallValue(ball);
+    final remainingAfter = game.remainingBallsValue - ballValue;
+
+    final moneyBallPlayers = <Player>[];
+
+    for (final candidate in activePlayers) {
+      final candidateNewScore = candidate.score + ballValue;
+
+      bool uncatchable = true;
+      for (final other in activePlayers) {
+        if (other.id == candidate.id) continue;
+        if (other.score + remainingAfter >= candidateNewScore) {
+          uncatchable = false;
+          break;
+        }
+      }
+
+      if (uncatchable) {
+        moneyBallPlayers.add(candidate);
+      }
+    }
+
+    return moneyBallPlayers;
+  }
+
   /// Check for early win condition
   static bool checkEarlyWin(Game game) {
     final activePlayers = game.activePlayers;
@@ -451,7 +534,7 @@ class GameLogicService {
       id: _uuid.v4(),
       gameId: game.id,
       playerId: game.currentPlayer.id,
-      type: ActionType.neutralShot,
+      type: ActionType.bothJumpedOff,
       pointsChange: 0,
       timestamp: DateTime.now(),
       description: 'No action (no balls remaining)',

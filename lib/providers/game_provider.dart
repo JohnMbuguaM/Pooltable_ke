@@ -5,6 +5,7 @@ import '../models/player.dart';
 import '../models/action.dart';
 import '../services/game_logic_service.dart';
 import '../services/database_service.dart';
+import '../utils/constants.dart';
 
 class GameProvider extends ChangeNotifier {
   static const _uuid = Uuid();
@@ -119,12 +120,25 @@ class GameProvider extends ChangeNotifier {
     await _postAction(isMoneyBallPocket: isMoneyBall);
   }
 
-  Future<void> neutralShot({bool bothJumpedOff = false}) async {
+  Future<void> throughShot(List<int> ballNumbers) async {
     if (_currentGame == null || _currentGame!.isGameOver) return;
 
-    GameLogicService.applyNeutralShot(_currentGame!,
-        bothJumpedOff: bothJumpedOff);
-    _lastEvent = bothJumpedOff ? 'Both balls jumped off' : 'Neutral shot';
+    GameLogicService.applyThroughShot(_currentGame!, ballNumbers);
+    final ballsStr = ballNumbers.join(', ');
+    _lastEvent = 'Through shot: ball(s) $ballsStr + cue (0 pts)';
+
+    await _postAction();
+  }
+
+  Future<void> throughFoul(List<int> ballNumbers) async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+    if (ballNumbers.isEmpty) return;
+
+    GameLogicService.applyThroughFoul(_currentGame!, ballNumbers);
+    final penaltyBall = ballNumbers.first;
+    final penalty = AppConstants.getBallValue(penaltyBall);
+    final ballsStr = ballNumbers.join(', ');
+    _lastEvent = 'Through + Foul: ball(s) $ballsStr pocketed (-$penalty pts)';
 
     await _postAction();
   }
@@ -175,6 +189,67 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ========== MID-GAME PLAYER MANAGEMENT ==========
+
+  Future<void> addPlayerMidGame(String name) async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+
+    final newPlayer = Player(id: _uuid.v4(), name: name);
+    _currentGame!.players.add(newPlayer);
+
+    _lastEvent = '${newPlayer.name} joined the game!';
+    await _saveCurrentGame();
+    notifyListeners();
+  }
+
+  Future<void> removePlayerMidGame(String playerId) async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+
+    final game = _currentGame!;
+    final activePlayers = game.activePlayers;
+
+    final playerToRemove = game.players.firstWhere((p) => p.id == playerId);
+
+    // Cannot remove if only 2 active players remain
+    if (!playerToRemove.isEliminated && activePlayers.length <= 2) {
+      _lastEvent = 'Cannot remove: minimum 2 active players required';
+      notifyListeners();
+      return;
+    }
+
+    final removedIndex = game.players.indexWhere((p) => p.id == playerId);
+    if (removedIndex == -1) return;
+
+    final removedName = game.players[removedIndex].name;
+
+    // If the removed player is the current player, advance turn first
+    if (removedIndex == game.currentPlayerIndex) {
+      game.currentPlayerIndex = GameLogicService.getNextPlayerIndex(game);
+    }
+
+    // Remove the player
+    game.players.removeAt(removedIndex);
+
+    // Adjust currentPlayerIndex if removed player was before current
+    if (removedIndex < game.currentPlayerIndex) {
+      game.currentPlayerIndex--;
+    }
+
+    // Clamp index to valid range
+    if (game.currentPlayerIndex >= game.players.length) {
+      game.currentPlayerIndex = 0;
+    }
+
+    // Ensure current player is not eliminated
+    if (game.players[game.currentPlayerIndex].isEliminated) {
+      game.currentPlayerIndex = GameLogicService.getNextPlayerIndex(game);
+    }
+
+    _lastEvent = '$removedName removed from game';
+    await _saveCurrentGame();
+    notifyListeners();
+  }
+
   // ========== POST-ACTION PROCESSING ==========
 
   Future<void> _postAction({bool isMoneyBallPocket = false}) async {
@@ -220,12 +295,12 @@ class GameProvider extends ChangeNotifier {
 
     // Money ball alert (only if game is still active)
     if (!_currentGame!.isGameOver) {
-      final moneyBallLeader =
-          GameLogicService.checkMoneyBall(_currentGame!);
-      if (moneyBallLeader != null) {
+      final moneyBallPlayers =
+          GameLogicService.checkMoneyBallPlayers(_currentGame!);
+      if (moneyBallPlayers.isNotEmpty) {
         final ball = _currentGame!.currentTargetBall;
-        _lastEvent =
-            'Ball $ball is the money ball for ${moneyBallLeader.name}!';
+        final names = moneyBallPlayers.map((p) => p.name).join(' & ');
+        _lastEvent = 'Ball $ball is the money ball for $names!';
       }
     }
 

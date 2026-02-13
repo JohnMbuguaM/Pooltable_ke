@@ -112,7 +112,7 @@ class _NewGameScreenState extends State<NewGameScreen>
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Max Game',
+                      'ChalkMan',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

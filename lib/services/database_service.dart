@@ -142,6 +142,16 @@ class DatabaseService {
         );
       }
 
+      // Delete players no longer in the game (removed mid-game)
+      final currentPlayerIds = game.players.map((p) => p.id).toList();
+      if (currentPlayerIds.isNotEmpty) {
+        final placeholders = List.filled(currentPlayerIds.length, '?').join(',');
+        await txn.rawDelete(
+          'DELETE FROM players WHERE game_id = ? AND id NOT IN ($placeholders)',
+          [game.id, ...currentPlayerIds],
+        );
+      }
+
       // Delete old actions and re-insert (simpler for undo support)
       await txn.delete('actions', where: 'game_id = ?', whereArgs: [game.id]);
       for (int i = 0; i < game.actions.length; i++) {

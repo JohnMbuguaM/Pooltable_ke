@@ -7,7 +7,7 @@ void main() {
       test('returns correct label for each type', () {
         expect(ActionType.successfulPocket.label, 'Pocket');
         expect(ActionType.combinationShot.label, 'Combo');
-        expect(ActionType.neutralShot.label, 'Neutral');
+        expect(ActionType.throughShot.label, 'Neutral');
         expect(ActionType.wrongBallContact.label, 'Wrong Ball');
         expect(ActionType.cueBallScratch.label, 'Scratch');
         expect(ActionType.ballTouched.label, 'Touch Foul');
@@ -47,14 +47,14 @@ void main() {
       });
 
       test('neutral types are not positive', () {
-        expect(ActionType.neutralShot.isPositive, false);
+        expect(ActionType.throughShot.isPositive, false);
         expect(ActionType.bothJumpedOff.isPositive, false);
       });
     });
 
     group('isNeutral', () {
-      test('neutralShot is neutral', () {
-        expect(ActionType.neutralShot.isNeutral, true);
+      test('throughShot is neutral', () {
+        expect(ActionType.throughShot.isNeutral, true);
       });
 
       test('bothJumpedOff is neutral', () {
@@ -89,7 +89,7 @@ void main() {
       });
 
       test('neutral types are not negative', () {
-        expect(ActionType.neutralShot.isNegative, false);
+        expect(ActionType.throughShot.isNegative, false);
         expect(ActionType.bothJumpedOff.isNegative, false);
       });
     });
@@ -212,7 +212,7 @@ void main() {
           id: 'a1',
           gameId: 'g1',
           playerId: 'p1',
-          type: ActionType.neutralShot,
+          type: ActionType.throughShot,
           pointsChange: 0,
           timestamp: timestamp,
         );

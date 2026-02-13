@@ -1,7 +1,7 @@
 enum ActionType {
   successfulPocket,
   combinationShot,
-  neutralShot,
+  throughShot,
   wrongBallContact,
   cueBallScratch,
   ballTouched,
@@ -11,6 +11,7 @@ enum ActionType {
   carryBall,
   handicapAdjustment,
   miss,
+  throughFoul,
 }
 
 extension ActionTypeExtension on ActionType {
@@ -20,8 +21,8 @@ extension ActionTypeExtension on ActionType {
         return 'Pocket';
       case ActionType.combinationShot:
         return 'Combo';
-      case ActionType.neutralShot:
-        return 'Neutral';
+      case ActionType.throughShot:
+        return 'Through';
       case ActionType.wrongBallContact:
         return 'Wrong Ball';
       case ActionType.cueBallScratch:
@@ -40,6 +41,8 @@ extension ActionTypeExtension on ActionType {
         return 'Handicap';
       case ActionType.miss:
         return 'Miss';
+      case ActionType.throughFoul:
+        return 'Through + Foul';
     }
   }
 
@@ -49,8 +52,8 @@ extension ActionTypeExtension on ActionType {
         return 'Ball pocketed successfully';
       case ActionType.combinationShot:
         return 'Combination shot - different ball pocketed';
-      case ActionType.neutralShot:
-        return 'Target + cue ball pocketed or both jumped off';
+      case ActionType.throughShot:
+        return 'Ball pocketed together with cue ball';
       case ActionType.wrongBallContact:
         return 'Cue ball hit wrong ball first';
       case ActionType.cueBallScratch:
@@ -69,14 +72,18 @@ extension ActionTypeExtension on ActionType {
         return 'Points deducted from leader (handicap)';
       case ActionType.miss:
         return 'Missed the target ball';
+      case ActionType.throughFoul:
+        return 'Wrong ball pocketed - penalty on first ball touched';
     }
   }
 
   bool get isPositive =>
-      this == ActionType.successfulPocket || this == ActionType.combinationShot;
+      this == ActionType.successfulPocket ||
+      this == ActionType.combinationShot ||
+      this == ActionType.throughShot;
 
   bool get isNeutral =>
-      this == ActionType.neutralShot || this == ActionType.bothJumpedOff;
+      this == ActionType.bothJumpedOff;
 
   bool get isNegative => !isPositive && !isNeutral;
 
@@ -86,8 +93,8 @@ extension ActionTypeExtension on ActionType {
         return 'check_circle';
       case ActionType.combinationShot:
         return 'auto_awesome';
-      case ActionType.neutralShot:
-        return 'remove_circle_outline';
+      case ActionType.throughShot:
+        return 'compare_arrows';
       case ActionType.wrongBallContact:
         return 'error';
       case ActionType.cueBallScratch:
@@ -106,6 +113,8 @@ extension ActionTypeExtension on ActionType {
         return 'balance';
       case ActionType.miss:
         return 'close';
+      case ActionType.throughFoul:
+        return 'warning';
     }
   }
 }

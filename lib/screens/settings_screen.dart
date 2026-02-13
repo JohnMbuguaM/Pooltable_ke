@@ -158,7 +158,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Max Game Score Calculator',
+                  'Pool Scoring Application',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context)

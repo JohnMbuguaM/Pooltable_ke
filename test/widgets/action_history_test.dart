@@ -82,7 +82,7 @@ void main() {
     testWidgets('does not show points for zero change (neutral)', (tester) async {
       final actions = [
         makeAction(
-          type: ActionType.neutralShot,
+          type: ActionType.throughShot,
           pointsChange: 0,
           description: 'Neutral shot',
         ),

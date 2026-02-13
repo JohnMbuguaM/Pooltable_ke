@@ -350,7 +350,7 @@ void main() {
           pocketedBalls: AppConstants.allBalls,
         );
         final action = GameLogicService.applySuccessfulPocket(game);
-        expect(action.type, ActionType.neutralShot); // No-op
+        expect(action.type, ActionType.throughShot); // No-op
         expect(game.players[0].score, 0);
       });
     });
@@ -425,66 +425,70 @@ void main() {
     });
 
     // ==========================================
-    //  applyNeutralShot
+    //  applyThroughShot
     // ==========================================
-    group('applyNeutralShot', () {
-      test('no points change for neutral shot', () {
+    group('applyThroughShot', () {
+      test('awards NO points for through shot (cue also pocketed)', () {
         final game = makeGame();
-        GameLogicService.applyNeutralShot(game);
-        expect(game.players[0].score, 0);
+        final targetBall = game.currentTargetBall; // Ball 3
+        GameLogicService.applyThroughShot(game, [targetBall]);
+        expect(game.players[0].score, 0); // No points because cue was also pocketed
       });
 
-      test('ball IS pocketed (removed from remaining) on neutral pocket', () {
+      test('ball IS pocketed (removed from remaining) on through shot', () {
         final game = makeGame();
         final targetBall = game.currentTargetBall;
-        GameLogicService.applyNeutralShot(game);
+        GameLogicService.applyThroughShot(game, [targetBall]);
         expect(game.remainingBalls.contains(targetBall), false);
       });
 
-      test('ball is added to pocketed list on neutral pocket', () {
+      test('ball is added to pocketed list on through shot', () {
         final game = makeGame();
         final targetBall = game.currentTargetBall;
-        GameLogicService.applyNeutralShot(game);
+        GameLogicService.applyThroughShot(game, [targetBall]);
         expect(game.pocketedBalls.contains(targetBall), true);
       });
 
-      test('advances to next player', () {
+      test('advances to next player (loses turn due to cue ball pocketed)', () {
         final game = makeGame();
-        GameLogicService.applyNeutralShot(game);
+        final targetBall = game.currentTargetBall;
+        GameLogicService.applyThroughShot(game, [targetBall]);
         expect(game.currentPlayerIndex, 1);
       });
 
-      test('advances ball sequence after neutral pocket', () {
+      test('advances ball sequence if target ball pocketed', () {
         final game = makeGame();
-        GameLogicService.applyNeutralShot(game);
-        // Ball 3 neutraled, next target should be 4
+        final targetBall = game.currentTargetBall; // Ball 3
+        GameLogicService.applyThroughShot(game, [targetBall]);
+        // Ball 3 pocketed with cue, next target should be 4
         expect(game.currentTargetBall, 4);
       });
 
-      test('records action as neutralShot type', () {
+      test('does not advance sequence if non-target ball pocketed', () {
         final game = makeGame();
-        GameLogicService.applyNeutralShot(game);
-        expect(game.actions.last.type, ActionType.neutralShot);
+        final nonTargetBall = 5; // Current target is 3
+        GameLogicService.applyThroughShot(game, [nonTargetBall]);
+        // Target should still be 3
+        expect(game.currentTargetBall, 3);
+      });
+
+      test('can pocket multiple balls in through shot', () {
+        final game = makeGame();
+        final balls = [3, 4, 5]; // Pocket multiple balls with cue
+        GameLogicService.applyThroughShot(game, balls);
+        expect(game.pocketedBalls.contains(3), true);
+        expect(game.pocketedBalls.contains(4), true);
+        expect(game.pocketedBalls.contains(5), true);
+        expect(game.players[0].score, 0); // Still no points
+      });
+
+      test('records action as throughShot type with 0 points', () {
+        final game = makeGame();
+        final targetBall = game.currentTargetBall; // Ball 3
+        GameLogicService.applyThroughShot(game, [targetBall]);
+        expect(game.actions.last.type, ActionType.throughShot);
         expect(game.actions.last.pointsChange, 0);
-      });
-
-      test('bothJumpedOff does NOT pocket the ball', () {
-        final game = makeGame();
-        final ballsBefore = List<int>.from(game.remainingBalls);
-        GameLogicService.applyNeutralShot(game, bothJumpedOff: true);
-        expect(game.remainingBalls, ballsBefore);
-      });
-
-      test('bothJumpedOff records as bothJumpedOff type', () {
-        final game = makeGame();
-        GameLogicService.applyNeutralShot(game, bothJumpedOff: true);
-        expect(game.actions.last.type, ActionType.bothJumpedOff);
-      });
-
-      test('bothJumpedOff still advances player', () {
-        final game = makeGame();
-        GameLogicService.applyNeutralShot(game, bothJumpedOff: true);
-        expect(game.currentPlayerIndex, 1);
+        expect(game.actions.last.ballNumber, targetBall);
       });
     });
 
@@ -498,8 +502,10 @@ void main() {
         expect(game.players[0].score, -6);
       });
 
-      test('cueBallScratch deducts 6 points', () {
+      test('cueBallScratch deducts target ball value (ball 3 = 6 pts)', () {
         final game = makeGame();
+        // Target ball is 3, which is worth 6 points
+        expect(game.currentTargetBall, 3);
         GameLogicService.applyPenalty(game, ActionType.cueBallScratch);
         expect(game.players[0].score, -6);
       });
@@ -1238,10 +1244,11 @@ void main() {
         expect(game.remainingBalls.contains(10), true);
       });
 
-      test('undo after neutral restores ball state', () {
+      test('undo after through shot restores ball state', () {
         final game = makeGame();
-        GameLogicService.applyNeutralShot(game);
-        // Ball 3 was pocketed (neutral), player advanced
+        final targetBall = game.currentTargetBall; // Ball 3
+        GameLogicService.applyThroughShot(game, [targetBall]);
+        // Ball 3 was pocketed in through shot, player advanced
         expect(game.pocketedBalls.contains(3), true);
 
         GameLogicService.undoLastAction(game);
@@ -1473,7 +1480,7 @@ void main() {
         game.currentPlayerIndex = 0;
         GameLogicService.applyCombinationShot(game, 10); // +10
         game.currentPlayerIndex = 0;
-        GameLogicService.applyNeutralShot(game); // Neutral, ball 4 pocketed
+        GameLogicService.applyThroughShot(game, [4]); // Through shot, ball 4 pocketed with cue
 
         expect(game.actions.length, 4);
 
