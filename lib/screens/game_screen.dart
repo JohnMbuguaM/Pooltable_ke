@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
@@ -8,8 +9,8 @@ import '../utils/theme.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/ball_tracker.dart';
 import '../widgets/action_buttons.dart';
-import '../widgets/action_history.dart';
 import '../services/game_logic_service.dart';
+import 'action_log_screen.dart';
 import 'rematch_setup_screen.dart';
 
 class GameScreen extends StatelessWidget {
@@ -54,7 +55,7 @@ class GameScreen extends StatelessWidget {
   PreferredSizeWidget _buildAppBar(
       BuildContext context, Game game, GameProvider provider) {
     return AppBar(
-      title: Text(game.isGameOver ? 'Game Over' : 'Max Game'),
+      title: Text(game.isGameOver ? 'Game Over' : 'ChalkMan'),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_rounded),
         onPressed: () {
@@ -71,10 +72,21 @@ class GameScreen extends StatelessWidget {
             icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) {
               switch (value) {
-                case 'abandon':
-                  _showAbandonDialog(context, provider);
                 case 'undo':
                   provider.undoLastAction();
+                case 'action_log':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ActionLogScreen(game: game),
+                    ),
+                  );
+                case 'add_player':
+                  _showAddPlayerDialog(context, provider);
+                case 'remove_player':
+                  _showRemovePlayerDialog(context, provider);
+                case 'abandon':
+                  _showAbandonDialog(context, provider);
               }
             },
             itemBuilder: (_) => [
@@ -85,6 +97,36 @@ class GameScreen extends StatelessWidget {
                     Icon(Icons.undo_rounded, size: 20),
                     SizedBox(width: 10),
                     Text('Undo Last Action'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'action_log',
+                child: Row(
+                  children: [
+                    Icon(Icons.history_rounded, size: 20),
+                    SizedBox(width: 10),
+                    Text('Action Log'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'add_player',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_add_rounded, size: 20),
+                    SizedBox(width: 10),
+                    Text('Add Player'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'remove_player',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_remove_rounded, size: 20),
+                    SizedBox(width: 10),
+                    Text('Remove Player'),
                   ],
                 ),
               ),
@@ -108,30 +150,95 @@ class GameScreen extends StatelessWidget {
   Widget _buildGameView(
       BuildContext context, Game game, GameProvider provider) {
     final targetBall = game.currentTargetBall;
-    final moneyBallLeader = GameLogicService.checkMoneyBall(game);
+    final moneyBallPlayers = GameLogicService.checkMoneyBallPlayers(game);
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Money ball alert
-          if (moneyBallLeader != null && targetBall > 0)
+          if (moneyBallPlayers.isNotEmpty && targetBall > 0)
             _MoneyBallBanner(
-              leaderName: moneyBallLeader.name,
+              playerNames: moneyBallPlayers.map((p) => p.name).toList(),
               ballNumber: targetBall,
             ),
 
+          // Current turn indicator
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.cardTheme.color,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.feltGreen.withValues(alpha: 0.15),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.feltGreen,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    game.currentPlayer.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (targetBall > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Ball $targetBall',
+                      style: const TextStyle(
+                        color: Colors.amber,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  'R${game.roundNumber}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Ball tracker
           BallTracker(game: game),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-          // Scoreboard (tap to select player - TURN badge shows current)
+          // Scoreboard
           Scoreboard(
             game: game,
-            onPlayerTap: (playerId) async => await provider.selectPlayer(playerId),
+            onPlayerTap: (playerId) async =>
+                await provider.selectPlayer(playerId),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
 
           // Action buttons
           ActionButtons(
@@ -139,7 +246,8 @@ class GameScreen extends StatelessWidget {
             onMiss: () => provider.missShot(),
             onNextPlayer: () => provider.nextPlayer(),
             onCombo: (ball) => provider.combinationShot(ball),
-            onNeutral: () => provider.neutralShot(),
+            onThrough: (balls) => provider.throughShot(balls),
+            onThroughFoul: (balls) => provider.throughFoul(balls),
             onPenalty: (ActionType type, {int? ballNumber}) =>
                 provider.applyPenalty(type, ballNumber: ballNumber),
             onUndo: () => provider.undoLastAction(),
@@ -147,11 +255,87 @@ class GameScreen extends StatelessWidget {
             remainingBalls: game.remainingBalls,
             currentTargetBall: targetBall > 0 ? targetBall : null,
           ),
-          const SizedBox(height: 14),
-
-          // Collapsible action history
-          if (game.actions.isNotEmpty) _ActionHistorySection(game: game),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPlayerDialog(BuildContext context, GameProvider provider) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Player'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            hintText: 'Player name',
+            prefixIcon: Icon(Icons.person_outline_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(ctx);
+                provider.addPlayerMidGame(name);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemovePlayerDialog(BuildContext context, GameProvider provider) {
+    final game = provider.currentGame;
+    if (game == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Player'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: game.players.map((player) {
+              final isCurrentPlayer = player.id == game.currentPlayer.id;
+              return ListTile(
+                leading: Icon(
+                  player.isEliminated ? Icons.person_off : Icons.person,
+                  color: player.isEliminated ? Colors.red : null,
+                ),
+                title: Text(player.name),
+                subtitle: Text(
+                    'Score: ${player.score}${player.isEliminated ? " (eliminated)" : ""}'),
+                trailing: isCurrentPlayer
+                    ? const Chip(
+                        label:
+                            Text('TURN', style: TextStyle(fontSize: 10)))
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  provider.removePlayerMidGame(player.id);
+                },
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
         ],
       ),
     );
@@ -210,150 +394,141 @@ class GameScreen extends StatelessWidget {
   }
 }
 
-class _ActionHistorySection extends StatefulWidget {
-  final Game game;
-
-  const _ActionHistorySection({required this.game});
-
-  @override
-  State<_ActionHistorySection> createState() => _ActionHistorySectionState();
-}
-
-class _ActionHistorySectionState extends State<_ActionHistorySection> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header - tap to expand/collapse
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius: _expanded
-                  ? const BorderRadius.vertical(top: Radius.circular(12))
-                  : BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.history_rounded,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.secondary),
-                const SizedBox(width: 6),
-                const Text(
-                  'Action Log',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '(${widget.game.actions.length})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.4),
-                  ),
-                ),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    size: 20,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Expandable content
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(12)),
-            ),
-            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-            child: ActionHistory(actions: widget.game.actions),
-          ),
-          crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
-        ),
-      ],
-    );
-  }
-}
-
-class _MoneyBallBanner extends StatelessWidget {
-  final String leaderName;
+class _MoneyBallBanner extends StatefulWidget {
+  final List<String> playerNames;
   final int ballNumber;
 
   const _MoneyBallBanner({
-    required this.leaderName,
+    required this.playerNames,
     required this.ballNumber,
   });
 
   @override
+  State<_MoneyBallBanner> createState() => _MoneyBallBannerState();
+}
+
+class _MoneyBallBannerState extends State<_MoneyBallBanner>
+    with TickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+  late AnimationController _glowController;
+  late Animation<double> _glowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Bounce-in entrance
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.elasticOut,
+    );
+
+    // Pulsing glow
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+
+    _scaleController.forward();
+    _glowController.repeat(reverse: true);
+
+    // Haptic buzz on appear
+    HapticFeedback.heavyImpact();
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.accentGold.withValues(alpha: 0.25),
-            AppTheme.accentGold.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.accentGold.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.local_fire_department_rounded,
-              color: AppTheme.accentGold, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 13, height: 1.3),
-                children: [
-                  const TextSpan(
-                    text: 'Money Ball! ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentGold,
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'Ball $ballNumber wins it for ',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  TextSpan(
-                    text: leaderName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentGold,
-                    ),
-                  ),
+    final namesText = widget.playerNames.length == 1
+        ? widget.playerNames.first
+        : widget.playerNames.join(' & ');
+
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          final glow = _glowAnimation.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.accentGold.withValues(alpha: 0.25),
+                  AppTheme.accentGold.withValues(alpha: 0.08),
                 ],
               ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.accentGold.withValues(alpha: 0.4 + glow * 0.4),
+                width: 1.0 + glow * 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accentGold
+                      .withValues(alpha: 0.1 + glow * 0.25),
+                  blurRadius: 8 + glow * 12,
+                  spreadRadius: glow * 2,
+                ),
+              ],
             ),
-          ),
-        ],
+            child: child,
+          );
+        },
+        child: Row(
+          children: [
+            const Icon(Icons.local_fire_department_rounded,
+                color: AppTheme.accentGold, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 13, height: 1.3),
+                  children: [
+                    const TextSpan(
+                      text: 'Money Ball! ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accentGold,
+                      ),
+                    ),
+                    TextSpan(
+                      text: 'Ball ${widget.ballNumber} wins it for ',
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
+                      ),
+                    ),
+                    TextSpan(
+                      text: namesText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accentGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
