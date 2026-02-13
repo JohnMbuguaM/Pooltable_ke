@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 import '../models/action.dart';
+import '../models/player.dart';
 import '../utils/helpers.dart';
 
 class ActionHistory extends StatelessWidget {
   final List<GameAction> actions;
+  final List<Player>? players;
   final int maxItems;
 
   const ActionHistory({
     super.key,
     required this.actions,
-    this.maxItems = 20,
+    this.players,
+    this.maxItems = 0,
   });
+
+  String? _playerName(String playerId) {
+    if (players == null) return null;
+    final match = players!.where((p) => p.id == playerId);
+    return match.isNotEmpty ? match.first.name : null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final displayActions = actions.reversed.take(maxItems).toList();
+    final reversed = actions.reversed.toList();
+    final displayActions =
+        maxItems > 0 ? reversed.take(maxItems).toList() : reversed;
+    final theme = Theme.of(context);
 
     if (displayActions.isEmpty) {
       return Center(
@@ -24,12 +36,12 @@ class ActionHistory extends StatelessWidget {
             children: [
               Icon(Icons.history,
                   size: 40,
-                  color: Colors.white.withValues(alpha: 0.2)),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
               const SizedBox(height: 8),
               Text(
                 'No actions yet',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                   fontSize: 14,
                 ),
               ),
@@ -45,11 +57,14 @@ class ActionHistory extends StatelessWidget {
       itemCount: displayActions.length,
       separatorBuilder: (_, _) => Divider(
         height: 1,
-        color: Colors.white.withValues(alpha: 0.06),
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
       ),
       itemBuilder: (context, index) {
         final action = displayActions[index];
-        return _ActionTile(action: action);
+        return _ActionTile(
+          action: action,
+          playerName: _playerName(action.playerId),
+        );
       },
     );
   }
@@ -57,13 +72,15 @@ class ActionHistory extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   final GameAction action;
+  final String? playerName;
 
-  const _ActionTile({required this.action});
+  const _ActionTile({required this.action, this.playerName});
 
   @override
   Widget build(BuildContext context) {
     final color = _getActionColor(action.type);
     final icon = _getActionIcon(action.type);
+    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -83,6 +100,15 @@ class _ActionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (playerName != null)
+                  Text(
+                    playerName!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
                 Text(
                   action.description ?? action.type.label,
                   style: const TextStyle(fontSize: 13),
@@ -91,7 +117,7 @@ class _ActionTile extends StatelessWidget {
                   Helpers.formatTime(action.timestamp),
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                 ),
               ],
@@ -138,8 +164,8 @@ class _ActionTile extends StatelessWidget {
         return Icons.check_circle;
       case ActionType.combinationShot:
         return Icons.auto_awesome;
-      case ActionType.neutralShot:
-        return Icons.remove_circle_outline;
+      case ActionType.throughShot:
+        return Icons.compare_arrows;
       case ActionType.wrongBallContact:
         return Icons.error_outline;
       case ActionType.cueBallScratch:
@@ -158,6 +184,8 @@ class _ActionTile extends StatelessWidget {
         return Icons.balance;
       case ActionType.miss:
         return Icons.close_rounded;
+      case ActionType.throughFoul:
+        return Icons.warning_amber_rounded;
     }
   }
 }

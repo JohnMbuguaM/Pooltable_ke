@@ -9,7 +9,8 @@ class ActionButtons extends StatelessWidget {
   final VoidCallback onMiss;
   final VoidCallback onNextPlayer;
   final Function(int ball) onCombo;
-  final VoidCallback onNeutral;
+  final Function(List<int> balls) onThrough;
+  final Function(List<int> balls) onThroughFoul;
   final Function(ActionType type, {int? ballNumber}) onPenalty;
   final VoidCallback onUndo;
   final bool canUndo;
@@ -22,7 +23,8 @@ class ActionButtons extends StatelessWidget {
     required this.onMiss,
     required this.onNextPlayer,
     required this.onCombo,
-    required this.onNeutral,
+    required this.onThrough,
+    required this.onThroughFoul,
     required this.onPenalty,
     required this.onUndo,
     required this.canUndo,
@@ -32,97 +34,82 @@ class ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pts = currentTargetBall != null
+        ? AppConstants.getBallValue(currentTargetBall!)
+        : null;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Primary actions
+        // Row 1: Pocket / Miss / Next — all equal
         Row(
           children: [
             Expanded(
-              flex: 2,
-              child: _PrimaryActionButton(
-                label: 'Pocket',
-                sublabel: currentTargetBall != null
-                    ? 'Ball $currentTargetBall'
-                    : null,
+              child: _ActionTile(
                 icon: Icons.check_circle_rounded,
+                label: 'Pocket',
+                badge: pts != null ? '+$pts' : null,
                 color: AppTheme.success,
                 onTap: onPocket,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
-              child: _PrimaryActionButton(
-                label: 'Miss',
-                sublabel: currentTargetBall != null
-                    ? '-${AppConstants.getBallValue(currentTargetBall!)} pts'
-                    : null,
+              child: _ActionTile(
                 icon: Icons.close_rounded,
+                label: 'Miss',
+                badge: pts != null ? '-$pts' : null,
                 color: Colors.red.shade400,
                 onTap: onMiss,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
-              child: _PrimaryActionButton(
-                label: 'Next',
+              child: _ActionTile(
                 icon: Icons.skip_next_rounded,
-                color: Colors.grey.shade600,
+                label: 'Next',
+                color: Colors.blueGrey,
                 onTap: onNextPlayer,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
 
-        // Secondary actions row
+        // Row 2: Combo / Through / Undo — all equal
         Row(
           children: [
             Expanded(
-              child: _SecondaryActionButton(
-                label: 'Combo',
+              child: _ActionTile(
                 icon: Icons.auto_awesome,
+                label: 'Combo',
                 color: AppTheme.accentGold,
                 onTap: () => _showComboDialog(context),
               ),
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: _SecondaryActionButton(
-                label: 'Neutral',
-                icon: Icons.remove_circle_outline,
-                color: Colors.blueGrey,
-                onTap: onNeutral,
+              child: _ActionTile(
+                icon: Icons.compare_arrows,
+                label: 'Through',
+                color: Colors.blue,
+                onTap: () => _showThroughDialog(context),
               ),
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: _SecondaryActionButton(
-                label: 'Undo',
+              child: _ActionTile(
                 icon: Icons.undo_rounded,
+                label: 'Undo',
                 color: Colors.orange,
                 onTap: canUndo ? onUndo : null,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
-        // Foul/Penalty section
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            'Fouls',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
-            ),
-          ),
-        ),
+        // Fouls — wrap so all chips are fully visible
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -133,19 +120,14 @@ class ActionButtons extends StatelessWidget {
               onTap: () => _showWrongBallDialog(context),
             ),
             _FoulChip(
-              label: 'Touch',
-              icon: Icons.pan_tool_outlined,
-              onTap: () => _showTouchFoulDialog(context),
+              label: 'Scratch',
+              icon: Icons.cancel,
+              onTap: () => onPenalty(ActionType.cueBallScratch),
             ),
             _FoulChip(
-              label: 'Ball Off',
-              icon: Icons.arrow_upward,
-              onTap: () => _showBallOffDialog(context),
-            ),
-            _FoulChip(
-              label: 'Cue Off',
-              icon: Icons.north_east,
-              onTap: () => onPenalty(ActionType.cueBallJumpedOff),
+              label: 'Thru+Foul',
+              icon: Icons.warning_amber_rounded,
+              onTap: () => _showThroughFoulDialog(context),
             ),
             _FoulChip(
               label: 'Carry',
@@ -173,7 +155,6 @@ class ActionButtons extends StatelessWidget {
         subtitle: 'Tap balls to select, then confirm',
         remainingBalls: remainingBalls,
         onConfirm: (selectedBalls) {
-          // Process each selected ball as a combo shot
           for (final ball in selectedBalls) {
             onCombo(ball);
           }
@@ -201,93 +182,111 @@ class ActionButtons extends StatelessWidget {
     );
   }
 
-  void _showTouchFoulDialog(BuildContext context) {
+  void _showThroughFoulDialog(BuildContext context) {
     if (remainingBalls.isEmpty) {
-      onPenalty(ActionType.ballTouched);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No balls available')),
+      );
       return;
     }
 
     showDialog(
       context: context,
-      builder: (ctx) => _SingleSelectBallDialog(
-        title: 'Ball Touched',
-        subtitle: 'Select the ball that was touched',
+      builder: (ctx) => _OrderedMultiSelectBallDialog(
+        title: 'Through + Foul',
+        subtitle:
+            'Select ball(s) pocketed. The FIRST ball selected determines the penalty.',
         remainingBalls: remainingBalls,
-        onConfirm: (ball) {
-          onPenalty(ActionType.ballTouched, ballNumber: ball);
+        onConfirm: (balls) {
+          onThroughFoul(balls);
         },
       ),
     );
   }
 
-  void _showBallOffDialog(BuildContext context) {
+  void _showThroughDialog(BuildContext context) {
     if (remainingBalls.isEmpty) {
-      onPenalty(ActionType.ballJumpedOff);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No balls available for through shot')),
+      );
       return;
     }
 
     showDialog(
       context: context,
       builder: (ctx) => _MultiSelectBallDialog(
-        title: 'Balls Jumped Off',
-        subtitle: 'Select all balls that jumped off the table',
+        title: 'Through Shot',
+        subtitle: 'Select ball(s) pocketed with the cue ball',
         remainingBalls: remainingBalls,
-        onConfirm: (selectedBalls) {
-          // Process each selected ball
-          for (final ball in selectedBalls) {
-            onPenalty(ActionType.ballJumpedOff, ballNumber: ball);
-          }
+        onConfirm: (balls) {
+          onThrough(balls);
         },
       ),
     );
   }
 }
 
-class _PrimaryActionButton extends StatelessWidget {
-  final String label;
-  final String? sublabel;
+// ============================================================
+//  BUTTON WIDGETS
+// ============================================================
+
+/// Uniform action tile with icon + label, optional point badge.
+class _ActionTile extends StatelessWidget {
   final IconData icon;
+  final String label;
+  final String? badge;
   final Color color;
   final VoidCallback? onTap;
 
-  const _PrimaryActionButton({
-    required this.label,
-    this.sublabel,
+  const _ActionTile({
     required this.icon,
+    required this.label,
+    this.badge,
     required this.color,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
+    final effectiveColor = isEnabled ? color : Colors.grey.shade500;
+
     return Material(
-      color: color.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(14),
+      color: effectiveColor.withValues(alpha: isEnabled ? 0.1 : 0.04),
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+              Icon(icon, color: effectiveColor, size: 17),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: effectiveColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (sublabel != null)
+              if (badge != null) ...[
+                const SizedBox(width: 3),
                 Text(
-                  sublabel!,
+                  badge!,
                   style: TextStyle(
-                    color: color.withValues(alpha: 0.7),
-                    fontSize: 11,
+                    color: effectiveColor.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -296,53 +295,7 @@ class _PrimaryActionButton extends StatelessWidget {
   }
 }
 
-class _SecondaryActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _SecondaryActionButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: onTap != null
-          ? color.withValues(alpha: 0.1)
-          : Colors.grey.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            children: [
-              Icon(icon,
-                  color: onTap != null ? color : Colors.grey.shade600,
-                  size: 22),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: onTap != null ? color : Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+/// Small foul chip with icon + label.
 class _FoulChip extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -357,24 +310,24 @@ class _FoulChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.red.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(10),
+      color: Colors.red.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: Colors.red.shade300),
+              Icon(icon, size: 14, color: Colors.red.shade300),
               const SizedBox(width: 4),
               Text(
                 label,
                 style: TextStyle(
                   color: Colors.red.shade300,
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -385,7 +338,10 @@ class _FoulChip extends StatelessWidget {
   }
 }
 
-// Multi-select ball dialog for Combo and Ball Off
+// ============================================================
+//  BALL SELECTION DIALOGS
+// ============================================================
+
 class _MultiSelectBallDialog extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -416,23 +372,18 @@ class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text(widget.title,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(
-              widget.subtitle,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
+            Text(widget.subtitle,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6))),
             const SizedBox(height: 20),
-            // Ball selection grid
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -451,10 +402,7 @@ class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
                   child: Stack(
                     children: [
                       BallWidget(
-                        ballNumber: ball,
-                        isPocketed: false,
-                        size: 42,
-                      ),
+                          ballNumber: ball, isPocketed: false, size: 42),
                       if (isSelected)
                         Positioned(
                           right: 0,
@@ -465,13 +413,11 @@ class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
                             decoration: BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border:
+                                  Border.all(color: Colors.white, width: 2),
                             ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 12,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.check,
+                                size: 12, color: Colors.white),
                           ),
                         ),
                     ],
@@ -480,7 +426,6 @@ class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -511,7 +456,6 @@ class _MultiSelectBallDialogState extends State<_MultiSelectBallDialog> {
   }
 }
 
-// Single-select ball dialog for Touch
 class _SingleSelectBallDialog extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -526,7 +470,8 @@ class _SingleSelectBallDialog extends StatefulWidget {
   });
 
   @override
-  State<_SingleSelectBallDialog> createState() => _SingleSelectBallDialogState();
+  State<_SingleSelectBallDialog> createState() =>
+      _SingleSelectBallDialogState();
 }
 
 class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
@@ -542,41 +487,29 @@ class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text(widget.title,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(
-              widget.subtitle,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
+            Text(widget.subtitle,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6))),
             const SizedBox(height: 20),
-            // Ball selection grid
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: widget.remainingBalls.map((ball) {
                 final isSelected = _selectedBall == ball;
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedBall = ball;
-                    });
-                  },
+                  onTap: () => setState(() => _selectedBall = ball),
                   child: Stack(
                     children: [
                       BallWidget(
-                        ballNumber: ball,
-                        isPocketed: false,
-                        size: 42,
-                      ),
+                          ballNumber: ball, isPocketed: false, size: 42),
                       if (isSelected)
                         Positioned(
                           right: 0,
@@ -587,13 +520,11 @@ class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
                             decoration: BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border:
+                                  Border.all(color: Colors.white, width: 2),
                             ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 12,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.check,
+                                size: 12, color: Colors.white),
                           ),
                         ),
                     ],
@@ -602,7 +533,6 @@ class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -623,6 +553,151 @@ class _SingleSelectBallDialogState extends State<_SingleSelectBallDialog> {
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Confirm'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderedMultiSelectBallDialog extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final List<int> remainingBalls;
+  final Function(List<int>) onConfirm;
+
+  const _OrderedMultiSelectBallDialog({
+    required this.title,
+    required this.subtitle,
+    required this.remainingBalls,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_OrderedMultiSelectBallDialog> createState() =>
+      _OrderedMultiSelectBallDialogState();
+}
+
+class _OrderedMultiSelectBallDialogState
+    extends State<_OrderedMultiSelectBallDialog> {
+  final List<int> _selectedBalls = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.title,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(widget.subtitle,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6))),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.remainingBalls.map((ball) {
+                final selectionIndex = _selectedBalls.indexOf(ball);
+                final isSelected = selectionIndex >= 0;
+                final isFirst = selectionIndex == 0;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedBalls.remove(ball);
+                      } else {
+                        _selectedBalls.add(ball);
+                      }
+                    });
+                  },
+                  child: Stack(
+                    children: [
+                      BallWidget(
+                          ballNumber: ball, isPocketed: false, size: 42),
+                      if (isSelected)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: isFirst ? Colors.red : Colors.green,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${selectionIndex + 1}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedBalls.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Penalty: -${AppConstants.getBallValue(_selectedBalls.first)} pts (ball ${_selectedBalls.first})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade300,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedBalls.isEmpty
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          widget.onConfirm(List.from(_selectedBalls));
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade400,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Confirm (${_selectedBalls.length})'),
                 ),
               ],
             ),
