@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/rules_provider.dart';
 import '../utils/constants.dart';
 import '../utils/theme.dart';
+import 'rules_editor_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -78,23 +80,74 @@ class SettingsScreen extends StatelessWidget {
             'Game Rules',
             Icons.rule_rounded,
             [
-              _buildInfoTile(
-                context,
-                'Ball Sequence',
-                '3-15, then 1, then 2',
-                Icons.format_list_numbered_rounded,
-              ),
-              _buildInfoTile(
-                context,
-                'Ball Values',
-                '3-6 = 6pts, 7-15 = face value, 1 = 16pts, 2 = 17pts',
-                Icons.monetization_on_outlined,
-              ),
-              _buildInfoTile(
-                context,
-                'Penalty',
-                '5 points deducted per foul',
-                Icons.warning_amber_rounded,
+              Consumer<RulesProvider>(
+                builder: (context, rulesProvider, _) {
+                  if (!rulesProvider.isLoaded) {
+                    return const ListTile(
+                      dense: true,
+                      title: Text('Loading rules...'),
+                    );
+                  }
+
+                  final rules = rulesProvider.rules;
+                  return Column(
+                    children: [
+                      _buildInfoTile(
+                        context,
+                        'Ball Sequence',
+                        '3-15, then 1, then 2',
+                        Icons.format_list_numbered_rounded,
+                      ),
+                      _buildInfoTile(
+                        context,
+                        'Total Points',
+                        '${rules.totalBallPoints} points available',
+                        Icons.monetization_on_outlined,
+                      ),
+                      _buildInfoTile(
+                        context,
+                        'Standard Penalty',
+                        '${rules.wrongBallPenalty} points per foul',
+                        Icons.warning_amber_rounded,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.edit_rounded,
+                          size: 20,
+                          color: AppTheme.accentGold,
+                        ),
+                        title: const Text(
+                          'Edit Rules',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Customize ball values and penalties',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.3),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RulesEditorScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

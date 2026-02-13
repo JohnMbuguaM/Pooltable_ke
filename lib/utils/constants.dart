@@ -1,3 +1,5 @@
+import '../models/game_rules.dart';
+
 class AppConstants {
   AppConstants._();
 
@@ -10,7 +12,7 @@ class AppConstants {
   // All ball numbers
   static const List<int> allBalls = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-  // Ball point values
+  // Default ball point values (for reference only, use customRules in game logic)
   static const Map<int, int> ballValues = {
     1: 16,
     2: 17,
@@ -29,22 +31,25 @@ class AppConstants {
     15: 15,
   };
 
+  // Custom rules - updated by RulesProvider
+  static GameRules customRules = GameRules.defaults();
+
   static int getBallValue(int ballNumber) {
-    return ballValues[ballNumber] ?? 0;
+    return customRules.getBallValue(ballNumber);
   }
 
   // Total points of all balls
   static int get totalBallPoints {
-    return ballValues.values.fold(0, (sum, v) => sum + v);
+    return customRules.totalBallPoints;
   }
 
-  // Penalty amounts
-  static const int wrongBallContactPenalty = 6;
-  static const int cueBallScratchPenalty = 6;
-  static const int ballTouchedPenalty = 6;
-  static const int ballJumpedOffPenalty = 6;
-  static const int cueBallJumpedOffPenalty = 6;
-  static const int carryBallPenalty = 6;
+  // Penalty amounts - now use custom rules
+  static int get wrongBallContactPenalty => customRules.wrongBallPenalty;
+  static int get cueBallScratchPenalty => customRules.scratchPenalty;
+  static int get ballTouchedPenalty => customRules.ballTouchedPenalty;
+  static int get ballJumpedOffPenalty => customRules.ballJumpedOffPenalty;
+  static int get cueBallJumpedOffPenalty => customRules.cueBallJumpedOffPenalty;
+  static int get carryBallPenalty => customRules.carryBallPenalty;
 
   // Ball colors for UI
   static const Map<int, int> ballColors = {

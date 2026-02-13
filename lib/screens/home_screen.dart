@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/rules_provider.dart';
 import '../models/game.dart';
 import '../utils/helpers.dart';
 import '../utils/theme.dart';
@@ -47,8 +48,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _fadeController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GameProvider>().loadActiveGames();
-      context.read<GameProvider>().loadGameHistory();
+      final rulesProvider = context.read<RulesProvider>();
+      final gameProvider = context.read<GameProvider>();
+
+      // Sync custom rules to game provider
+      if (rulesProvider.isLoaded) {
+        gameProvider.updateRules(rulesProvider.rules);
+      }
+
+      gameProvider.loadActiveGames();
+      gameProvider.loadGameHistory();
     });
   }
 

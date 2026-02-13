@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/rules_provider.dart';
 import 'utils/theme.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -24,6 +25,7 @@ class ChalkManApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => RulesProvider()..loadRules()),
         ChangeNotifierProvider(create: (_) => GameProvider()),
       ],
       child: Consumer<ThemeProvider>(

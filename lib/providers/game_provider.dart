@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../models/action.dart';
+import '../models/game_rules.dart';
 import '../services/game_logic_service.dart';
 import '../services/database_service.dart';
 import '../utils/constants.dart';
@@ -17,6 +18,7 @@ class GameProvider extends ChangeNotifier {
   String? _lastEvent; // For showing snackbar messages
   bool _isMoneyBallWin = false; // Flag for money ball victory
   Player? _moneyBallWinner; // Stores the money ball winner for celebration
+  GameRules _rules = GameRules.defaults(); // Current game rules
 
   Game? get currentGame => _currentGame;
   List<Game> get gameHistory => _gameHistory;
@@ -25,9 +27,18 @@ class GameProvider extends ChangeNotifier {
   String? get lastEvent => _lastEvent;
   bool get isMoneyBallWin => _isMoneyBallWin;
   Player? get moneyBallWinner => _moneyBallWinner;
+  GameRules get rules => _rules;
 
   void clearLastEvent() {
     _lastEvent = null;
+  }
+
+  // Update current rules (called from widgets with access to RulesProvider)
+  void updateRules(GameRules newRules) {
+    _rules = newRules;
+    // Sync with AppConstants so existing game logic uses custom rules
+    AppConstants.customRules = newRules;
+    notifyListeners();
   }
 
   void _clearMoneyBallWin() {
@@ -136,7 +147,7 @@ class GameProvider extends ChangeNotifier {
 
     GameLogicService.applyThroughFoul(_currentGame!, ballNumbers);
     final penaltyBall = ballNumbers.first;
-    final penalty = AppConstants.getBallValue(penaltyBall);
+    final penalty = _rules.getBallValue(penaltyBall);
     final ballsStr = ballNumbers.join(', ');
     _lastEvent = 'Through + Foul: ball(s) $ballsStr pocketed (-$penalty pts)';
 
