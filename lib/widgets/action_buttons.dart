@@ -258,32 +258,32 @@ class _ActionTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: effectiveColor, size: 17),
-              const SizedBox(width: 4),
+              Icon(icon, color: effectiveColor, size: 22),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   label,
                   style: TextStyle(
                     color: effectiveColor,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (badge != null) ...[
-                const SizedBox(width: 3),
+                const SizedBox(width: 4),
                 Text(
                   badge!,
                   style: TextStyle(
                     color: effectiveColor.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
-                    fontSize: 10,
+                    fontSize: 12,
                   ),
                 ),
               ],
