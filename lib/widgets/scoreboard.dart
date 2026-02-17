@@ -7,8 +7,14 @@ import '../utils/theme.dart';
 class Scoreboard extends StatefulWidget {
   final Game game;
   final Function(String playerId)? onPlayerTap;
+  final Function(String playerId, int currentScore)? onPlayerLongPress;
 
-  const Scoreboard({super.key, required this.game, this.onPlayerTap});
+  const Scoreboard({
+    super.key,
+    required this.game,
+    this.onPlayerTap,
+    this.onPlayerLongPress,
+  });
 
   @override
   State<Scoreboard> createState() => _ScoreboardState();
@@ -301,6 +307,9 @@ class _ScoreboardState extends State<Scoreboard> {
       return GestureDetector(
         onTap: widget.onPlayerTap != null
             ? () => widget.onPlayerTap!(player.id)
+            : null,
+        onLongPress: widget.onPlayerLongPress != null
+            ? () => widget.onPlayerLongPress!(player.id, score)
             : null,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),

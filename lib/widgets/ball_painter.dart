@@ -7,6 +7,7 @@ class BallWidget extends StatelessWidget {
   final bool isTarget;
   final double size;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const BallWidget({
     super.key,
@@ -15,6 +16,7 @@ class BallWidget extends StatelessWidget {
     this.isTarget = false,
     this.size = 40,
     this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -24,6 +26,7 @@ class BallWidget extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
         opacity: isPocketed ? 0.25 : 1.0,

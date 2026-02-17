@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "248502364521",
+    "project_id": "chalkman-5a4e0",
+    "storage_bucket": "chalkman-5a4e0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248502364521:android:8c207002e319155d0e35f8",
+        "android_client_info": {
+          "package_name": "com.pooltableke.pooltable_ke"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrqwuHzLqwc4cFOqU2qM0Mv74gBjWTVe0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

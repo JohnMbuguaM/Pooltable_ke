@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game.dart';
@@ -6,6 +7,7 @@ import '../models/action.dart';
 import '../models/game_rules.dart';
 import '../services/game_logic_service.dart';
 import '../services/database_service.dart';
+import '../services/online_game_service.dart';
 import '../utils/constants.dart';
 
 class GameProvider extends ChangeNotifier {
@@ -19,6 +21,7 @@ class GameProvider extends ChangeNotifier {
   bool _isMoneyBallWin = false; // Flag for money ball victory
   Player? _moneyBallWinner; // Stores the money ball winner for celebration
   GameRules _rules = GameRules.defaults(); // Current game rules
+  StreamSubscription<Game>? _gameStreamSubscription; // For online game sync
 
   Game? get currentGame => _currentGame;
   List<Game> get gameHistory => _gameHistory;
@@ -87,6 +90,67 @@ class GameProvider extends ChangeNotifier {
   Future<void> loadGameHistory() async {
     _gameHistory = await DatabaseService.getAllGames();
     notifyListeners();
+  }
+
+  // ========== ONLINE GAME MANAGEMENT ==========
+
+  /// Set current game directly (used when joining online games)
+  void setCurrentGame(Game game) {
+    _currentGame = game;
+    _clearMoneyBallWin();
+    notifyListeners();
+  }
+
+  /// Create an online game from the current local game
+  Future<Game> createOnlineGame() async {
+    if (_currentGame == null) {
+      throw Exception('No active game to convert to online');
+    }
+
+    final onlineGame = await OnlineGameService.createOnlineGame(_currentGame!);
+    _currentGame = onlineGame;
+
+    // Start listening to real-time updates
+    await _listenToOnlineGame(onlineGame.id);
+
+    notifyListeners();
+    return onlineGame;
+  }
+
+  /// Listen to real-time game updates (for online games)
+  Future<void> _listenToOnlineGame(String gameId) async {
+    await _gameStreamSubscription?.cancel();
+
+    _gameStreamSubscription = OnlineGameService.listenToGame(gameId).listen(
+      (updatedGame) {
+        _currentGame = updatedGame;
+        notifyListeners();
+      },
+      onError: (error) {
+        debugPrint('Error listening to game: $error');
+        _lastEvent = 'Connection error: $error';
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Stop listening to online game updates
+  Future<void> stopListeningToGame() async {
+    await _gameStreamSubscription?.cancel();
+    _gameStreamSubscription = null;
+  }
+
+  /// Sync current game state to Firestore (for online games)
+  Future<void> _syncOnlineGame() async {
+    if (_currentGame != null && _currentGame!.isOnline) {
+      await OnlineGameService.syncGame(_currentGame!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _gameStreamSubscription?.cancel();
+    super.dispose();
   }
 
   // ========== SCORING ACTIONS ==========
@@ -332,6 +396,45 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
+  // ========== MANUAL ADJUSTMENTS ==========
+
+  /// Manually set a player's score (for corrections)
+  Future<void> manualEditScore(String playerId, int newScore) async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+
+    final player = _currentGame!.players.firstWhere((p) => p.id == playerId);
+    final oldScore = player.score;
+    player.score = newScore;
+
+    _lastEvent = '${player.name}: score adjusted from $oldScore to $newScore';
+
+    // Recalculate eliminations based on new scores
+    GameLogicService.recalculateEliminations(_currentGame!);
+
+    await _saveCurrentGame();
+    notifyListeners();
+  }
+
+  /// Restore a pocketed ball back to the table
+  Future<void> restoreBall(int ballNumber) async {
+    if (_currentGame == null || _currentGame!.isGameOver) return;
+
+    final game = _currentGame!;
+    if (!game.pocketedBalls.contains(ballNumber)) return;
+
+    game.pocketedBalls.remove(ballNumber);
+    game.remainingBalls.add(ballNumber);
+    game.remainingBalls.sort();
+
+    _lastEvent = 'Ball $ballNumber restored to the table';
+
+    // Recalculate eliminations since remaining ball value changed
+    GameLogicService.recalculateEliminations(game);
+
+    await _saveCurrentGame();
+    notifyListeners();
+  }
+
   // ========== GAME MANAGEMENT ==========
 
   Future<void> abandonGame() async {
@@ -360,5 +463,6 @@ class GameProvider extends ChangeNotifier {
   Future<void> _saveCurrentGame() async {
     if (_currentGame == null) return;
     await DatabaseService.updateGame(_currentGame!);
+    await _syncOnlineGame(); // Sync to Firestore if online game
   }
 }

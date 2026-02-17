@@ -11,6 +11,7 @@ import 'new_game_screen.dart';
 import 'game_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
+import 'join_game_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -207,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToNewGame(context),
+        onPressed: () => _showGameTypeSelector(context),
         icon: const Icon(Icons.add_rounded),
         label: const Text('New Game'),
       ),
@@ -252,13 +253,59 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (context, index) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _GameCard(
-                  game: displayedGames[index],
-                  onTap: () => _navigateToGame(context, displayedGames[index]),
-                ),
-              ),
+              (context, index) {
+                final game = displayedGames[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Dismissible(
+                    key: Key(game.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.delete_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Game?'),
+                          content: const Text(
+                            'This will permanently remove this game.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      ) ?? false;
+                    },
+                    onDismissed: (_) {
+                      context.read<GameProvider>().deleteGame(game.id);
+                    },
+                    child: _GameCard(
+                      game: game,
+                      onTap: () => _navigateToGame(context, game),
+                    ),
+                  ),
+                );
+              },
               childCount: displayedGames.length,
             ),
           ),
@@ -466,10 +513,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _showGameTypeSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Choose Game Type',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Local Game
+            _GameTypeOption(
+              icon: Icons.phone_android_rounded,
+              title: 'Local Game',
+              subtitle: 'Play on this device only',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToNewGame(context);
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Online Game
+            _GameTypeOption(
+              icon: Icons.cloud_rounded,
+              title: 'Create Online Game',
+              subtitle: 'Share with multiple devices',
+              onTap: () {
+                Navigator.pop(context);
+                _createOnlineGame(context);
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Join Game
+            _GameTypeOption(
+              icon: Icons.login_rounded,
+              title: 'Join Game',
+              subtitle: 'Enter a game code',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const JoinGameScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _navigateToNewGame(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NewGameScreen()),
+    );
+  }
+
+  void _createOnlineGame(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NewGameScreen(isOnline: true),
+      ),
     );
   }
 
@@ -783,6 +905,81 @@ class _EmptyState extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GameTypeOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _GameTypeOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.feltGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: AppTheme.feltGreen,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
           ],
         ),
       ),

@@ -6,11 +6,13 @@ import 'ball_painter.dart';
 class BallTracker extends StatelessWidget {
   final Game game;
   final Function(int ballNumber)? onBallTap;
+  final Function(int ballNumber)? onBallLongPress;
 
   const BallTracker({
     super.key,
     required this.game,
     this.onBallTap,
+    this.onBallLongPress,
   });
 
   @override
@@ -82,6 +84,9 @@ class BallTracker extends StatelessWidget {
                 size: 36,
                 onTap: onBallTap != null && !isPocketed
                     ? () => onBallTap!(ball)
+                    : null,
+                onLongPress: onBallLongPress != null && isPocketed
+                    ? () => onBallLongPress!(ball)
                     : null,
               );
             }).toList(),

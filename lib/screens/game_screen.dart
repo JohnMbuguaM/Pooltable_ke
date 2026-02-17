@@ -2,14 +2,18 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../models/action.dart';
 import '../utils/theme.dart';
+import '../utils/game_code_generator.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/ball_tracker.dart';
 import '../widgets/action_buttons.dart';
 import '../services/game_logic_service.dart';
+import '../services/firebase_service.dart';
 import 'action_log_screen.dart';
 import 'rematch_setup_screen.dart';
 
@@ -42,24 +46,32 @@ class GameScreen extends StatelessWidget {
           }
         });
 
+        // Check if current user is a spectator (read-only)
+        final isReadOnly = game.isOnline &&
+            !game.onlineData!.isHost(FirebaseService.currentUserId);
+
         return Scaffold(
-          appBar: _buildAppBar(context, game, provider),
+          appBar: _buildAppBar(context, game, provider, isReadOnly),
           body: game.isGameOver
               ? _GameOverView(game: game, provider: provider)
-              : _buildGameView(context, game, provider),
+              : _buildGameView(context, game, provider, isReadOnly),
         );
       },
     );
   }
 
   PreferredSizeWidget _buildAppBar(
-      BuildContext context, Game game, GameProvider provider) {
+      BuildContext context, Game game, GameProvider provider, bool isReadOnly) {
     return AppBar(
-      title: Text(game.isGameOver ? 'Game Over' : 'ChalkMan'),
+      title: Text(game.isGameOver
+          ? 'Game Over'
+          : isReadOnly
+              ? 'Spectating'
+              : 'ChalkMan'),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_rounded),
         onPressed: () {
-          if (game.isGameOver) {
+          if (game.isGameOver || isReadOnly) {
             Navigator.pop(context);
             return;
           }
@@ -67,7 +79,15 @@ class GameScreen extends StatelessWidget {
         },
       ),
       actions: [
-        if (!game.isGameOver)
+        // Share button for online games
+        if (game.isOnline && game.gameCode != null)
+          IconButton(
+            icon: const Icon(Icons.qr_code_rounded),
+            tooltip: 'Share Game Code',
+            onPressed: () => _showShareDialog(context, game),
+          ),
+        // Only show menu for host (not read-only)
+        if (!game.isGameOver && !isReadOnly)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) {
@@ -143,12 +163,24 @@ class GameScreen extends StatelessWidget {
               ),
             ],
           ),
+        // Read-only users can still view the action log
+        if (!game.isGameOver && isReadOnly)
+          IconButton(
+            icon: const Icon(Icons.history_rounded),
+            tooltip: 'Action Log',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ActionLogScreen(game: game),
+              ),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildGameView(
-      BuildContext context, Game game, GameProvider provider) {
+      BuildContext context, Game game, GameProvider provider, bool isReadOnly) {
     final targetBall = game.currentTargetBall;
     final moneyBallPlayers = GameLogicService.checkMoneyBallPlayers(game);
     final theme = Theme.of(context);
@@ -158,6 +190,33 @@ class GameScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Spectator banner
+          if (isReadOnly)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.visibility_rounded, size: 16, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text(
+                    'Spectator Mode - View Only',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Money ball alert
           if (moneyBallPlayers.isNotEmpty && targetBall > 0)
             _MoneyBallBanner(
@@ -229,32 +288,45 @@ class GameScreen extends StatelessWidget {
           ),
 
           // Ball tracker
-          BallTracker(game: game),
+          BallTracker(
+            game: game,
+            onBallLongPress: isReadOnly
+                ? null
+                : (ballNumber) =>
+                    _showRestoreBallDialog(context, provider, ballNumber),
+          ),
           const SizedBox(height: 8),
 
           // Scoreboard
           Scoreboard(
             game: game,
-            onPlayerTap: (playerId) async =>
-                await provider.selectPlayer(playerId),
+            onPlayerTap: isReadOnly
+                ? null
+                : (playerId) async =>
+                    await provider.selectPlayer(playerId),
+            onPlayerLongPress: isReadOnly
+                ? null
+                : (playerId, currentScore) =>
+                    _showEditScoreDialog(context, provider, game, playerId, currentScore),
           ),
           const SizedBox(height: 10),
 
-          // Action buttons
-          ActionButtons(
-            onPocket: () => provider.pocketBall(),
-            onMiss: () => provider.missShot(),
-            onNextPlayer: () => provider.nextPlayer(),
-            onCombo: (ball) => provider.combinationShot(ball),
-            onThrough: (balls) => provider.throughShot(balls),
-            onThroughFoul: (balls) => provider.throughFoul(balls),
-            onPenalty: (ActionType type, {int? ballNumber}) =>
-                provider.applyPenalty(type, ballNumber: ballNumber),
-            onUndo: () => provider.undoLastAction(),
-            canUndo: game.actions.isNotEmpty,
-            remainingBalls: game.remainingBalls,
-            currentTargetBall: targetBall > 0 ? targetBall : null,
-          ),
+          // Action buttons (hidden for spectators)
+          if (!isReadOnly)
+            ActionButtons(
+              onPocket: () => provider.pocketBall(),
+              onMiss: () => provider.missShot(),
+              onNextPlayer: () => provider.nextPlayer(),
+              onCombo: (ball) => provider.combinationShot(ball),
+              onThrough: (balls) => provider.throughShot(balls),
+              onThroughFoul: (balls) => provider.throughFoul(balls),
+              onPenalty: (ActionType type, {int? ballNumber}) =>
+                  provider.applyPenalty(type, ballNumber: ballNumber),
+              onUndo: () => provider.undoLastAction(),
+              canUndo: game.actions.isNotEmpty,
+              remainingBalls: game.remainingBalls,
+              currentTargetBall: targetBall > 0 ? targetBall : null,
+            ),
           const SizedBox(height: 16),
         ],
       ),
@@ -335,6 +407,195 @@ class GameScreen extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRestoreBallDialog(
+      BuildContext context, GameProvider provider, int ballNumber) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Restore Ball $ballNumber?'),
+        content: Text(
+          'This will put ball $ballNumber back on the table.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              provider.restoreBall(ballNumber);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.feltGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditScoreDialog(BuildContext context, GameProvider provider,
+      Game game, String playerId, int currentScore) {
+    final player = game.players.firstWhere((p) => p.id == playerId);
+    final controller = TextEditingController(text: '$currentScore');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit ${player.name}\'s Score'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Current score: $currentScore',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(
+                signed: true,
+              ),
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'New Score',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              onSubmitted: (_) {
+                final newScore = int.tryParse(controller.text);
+                if (newScore != null) {
+                  Navigator.pop(ctx);
+                  provider.manualEditScore(playerId, newScore);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newScore = int.tryParse(controller.text);
+              if (newScore != null) {
+                Navigator.pop(ctx);
+                provider.manualEditScore(playerId, newScore);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.feltGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShareDialog(BuildContext context, Game game) {
+    final gameCode = game.gameCode!;
+    final formattedCode = GameCodeGenerator.format(gameCode);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Share Game'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Others can scan this QR code or enter the game code to watch live:',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            // QR Code
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SizedBox(
+                width: 180,
+                height: 180,
+                child: QrImageView(
+                  data: formattedCode,
+                  version: QrVersions.auto,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF1B5E20),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF1B5E20),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Game code text
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.feltGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.feltGreen),
+              ),
+              child: Text(
+                formattedCode,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: formattedCode));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Code copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            label: const Text('Copy'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Share.share('Join my ChalkMan pool game! Code: $formattedCode');
+            },
+            icon: const Icon(Icons.share_rounded, size: 18),
+            label: const Text('Share'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
         ],
       ),

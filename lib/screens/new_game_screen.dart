@@ -6,7 +6,9 @@ import '../utils/theme.dart';
 import 'game_screen.dart';
 
 class NewGameScreen extends StatefulWidget {
-  const NewGameScreen({super.key});
+  final bool isOnline;
+
+  const NewGameScreen({super.key, this.isOnline = false});
 
   @override
   State<NewGameScreen> createState() => _NewGameScreenState();
@@ -61,6 +63,73 @@ class _NewGameScreenState extends State<NewGameScreen>
     final names = _controllers.map((c) => c.text.trim()).toList();
     final provider = context.read<GameProvider>();
     await provider.createGame(names);
+
+    // If online game, convert to online before navigating
+    if (widget.isOnline) {
+      try {
+        final onlineGame = await provider.createOnlineGame();
+        if (!mounted) return;
+
+        // Show game code before navigating
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Game Created!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Share this code with other players:',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.feltGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.feltGreen),
+                  ),
+                  child: Text(
+                    onlineGame.gameCode ?? '',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'You can also share the QR code from the game screen',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.feltGreen,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Start Playing'),
+              ),
+            ],
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating online game: $e')),
+        );
+        return;
+      }
+    }
 
     if (mounted) {
       Navigator.pushReplacement(

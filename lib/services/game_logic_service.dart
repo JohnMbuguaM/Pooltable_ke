@@ -509,9 +509,44 @@ class GameLogicService {
       game.status = GameStatus.active;
       game.winnerId = null;
       game.completedAt = null;
+      // Clear rankings
+      for (final p in game.players) {
+        p.rank = 0;
+      }
     }
 
+    // Recalculate elimination status for ALL players based on restored state.
+    // This fixes the bug where undoing an action only restored the action
+    // player's elimination state but left other players incorrectly eliminated.
+    recalculateEliminations(game);
+
     return true;
+  }
+
+  /// Recalculate which players should be eliminated based on current scores
+  /// and remaining ball values. Used after undo to ensure consistency.
+  static void recalculateEliminations(Game game) {
+    final remainingValue = game.remainingBallsValue;
+    final activePlayers = game.players.where((p) => !p.isEliminated).toList();
+
+    if (activePlayers.length <= 1) return;
+
+    // Find the highest score among all non-eliminated players
+    int highestScore = 0;
+    for (final p in activePlayers) {
+      if (p.score > highestScore) highestScore = p.score;
+    }
+
+    // Check eliminated players - should any come back?
+    for (final player in game.players) {
+      if (!player.isEliminated) continue;
+
+      // If eliminated player can now tie or beat the leader with remaining balls
+      if (player.score + remainingValue >= highestScore) {
+        player.isEliminated = false;
+        player.eliminatedAtRound = null;
+      }
+    }
   }
 
   /// Advance turn to next player (for miss / no action)

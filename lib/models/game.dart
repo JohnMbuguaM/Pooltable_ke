@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'player.dart';
 import 'action.dart';
+import 'online_game_data.dart';
 import '../utils/constants.dart';
 
 enum GameStatus { active, completed, abandoned }
@@ -17,6 +19,7 @@ class Game {
   String? winnerId;
   List<GameAction> actions;
   int roundNumber;
+  OnlineGameData? onlineData; // null for local games
 
   Game({
     required this.id,
@@ -31,6 +34,7 @@ class Game {
     this.winnerId,
     List<GameAction>? actions,
     this.roundNumber = 1,
+    this.onlineData,
   })  : remainingBalls = remainingBalls ?? List.from(AppConstants.allBalls),
         pocketedBalls = pocketedBalls ?? [],
         createdAt = createdAt ?? DateTime.now(),
@@ -66,6 +70,10 @@ class Game {
   }
 
   bool get isGameOver => status != GameStatus.active;
+
+  // Online game helpers
+  bool get isOnline => onlineData != null;
+  String? get gameCode => onlineData?.gameCode;
 
   Map<String, dynamic> toMap() {
     return {
@@ -109,6 +117,51 @@ class Game {
       winnerId: map['winner_id'] as String?,
       actions: actions ?? [],
       roundNumber: map['round_number'] as int? ?? 1,
+    );
+  }
+
+  // Firestore serialization
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'players': players.map((p) => p.toMap()).toList(),
+      'currentPlayerIndex': currentPlayerIndex,
+      'currentBallSequenceIndex': currentBallSequenceIndex,
+      'remainingBalls': remainingBalls,
+      'pocketedBalls': pocketedBalls,
+      'createdAt': FieldValue.serverTimestamp(),
+      'completedAt': completedAt?.toIso8601String(),
+      'status': status.name,
+      'winnerId': winnerId,
+      'actions': actions.map((a) => a.toMap()).toList(),
+      'roundNumber': roundNumber,
+      if (onlineData != null) 'onlineData': onlineData!.toFirestore(),
+    };
+  }
+
+  factory Game.fromFirestore(Map<String, dynamic> data) {
+    return Game(
+      id: data['id'] as String,
+      players: (data['players'] as List)
+          .map((p) => Player.fromMap(p as Map<String, dynamic>))
+          .toList(),
+      currentPlayerIndex: data['currentPlayerIndex'] as int? ?? 0,
+      currentBallSequenceIndex: data['currentBallSequenceIndex'] as int? ?? 0,
+      remainingBalls: List<int>.from(data['remainingBalls'] as List),
+      pocketedBalls: List<int>.from(data['pocketedBalls'] as List),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      completedAt: data['completedAt'] != null
+          ? DateTime.parse(data['completedAt'] as String)
+          : null,
+      status: GameStatus.values.firstWhere((e) => e.name == data['status']),
+      winnerId: data['winnerId'] as String?,
+      actions: (data['actions'] as List)
+          .map((a) => GameAction.fromMap(a as Map<String, dynamic>))
+          .toList(),
+      roundNumber: data['roundNumber'] as int? ?? 1,
+      onlineData: data['onlineData'] != null
+          ? OnlineGameData.fromFirestore(data['onlineData'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
