@@ -27,8 +27,8 @@ class FirebaseService {
       _initialized = true;
       debugPrint('Firebase initialized successfully. User ID: $_userId');
     } catch (e) {
-      debugPrint('Error initializing Firebase: $e');
-      rethrow;
+      // Firebase failure must never crash the app — local-only mode continues.
+      debugPrint('Firebase initialization failed (offline or misconfigured): $e');
     }
   }
 
