@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  static const int _pageCount = 5;
+  static const int _pageCount = 6;
 
   void _next() {
     if (_currentPage < _pageCount - 1) {
@@ -92,6 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   _WelcomePage(),
                   _TrackScoresPage(),
                   _ActionsPage(),
+                  _GlossaryPage(),
                   _MoneyBallPage(pulse: _pulse),
                   _PrizePage(),
                 ],
@@ -329,7 +330,199 @@ class _ActionsPage extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  PAGE 4 — Money Ball
+//  PAGE 4 — Glossary
+// ════════════════════════════════════════════════════════════════════
+
+class _GlossaryPage extends StatelessWidget {
+  static const _terms = [
+    _Term(
+      icon: Icons.radio_button_checked_rounded,
+      color: AppTheme.feltGreen,
+      name: 'Pocket',
+      definition: 'Ball legally sunk in a pocket. Scores its point value and advances the ball sequence.',
+    ),
+    _Term(
+      icon: Icons.close_rounded,
+      color: Color(0x99FFFFFF), // white60
+      name: 'Miss',
+      definition: 'Shot taken but no ball pocketed. Turn passes to the next player with no score change.',
+    ),
+    _Term(
+      icon: Icons.warning_amber_rounded,
+      color: AppTheme.wrongBallColor,
+      name: 'Wrong Ball',
+      definition: 'A ball pocketed out of sequence. A penalty is deducted and the turn ends immediately.',
+    ),
+    _Term(
+      icon: Icons.link_rounded,
+      color: Color(0xFF4FC3F7),
+      name: 'Combo',
+      definition: 'Two balls pocketed in a single shot. Both balls score and the sequence advances by two.',
+    ),
+    _Term(
+      icon: Icons.swap_horiz_rounded,
+      color: Color(0xB3FFFFFF), // white70
+      name: 'Through',
+      definition: 'A ball leaves the table without entering a pocket. Treated as a foul — no score awarded.',
+    ),
+    _Term(
+      icon: Icons.sports_bar_rounded,
+      color: Colors.redAccent,
+      name: 'Scratch',
+      definition: 'The cue ball is pocketed. A foul penalty is deducted and the turn ends.',
+    ),
+    _Term(
+      icon: Icons.crisis_alert_rounded,
+      color: Color(0xFFFF7043),
+      name: 'Through + Foul',
+      definition: 'A ball leaves the table AND the cue ball is pocketed in the same shot. Double foul penalty.',
+    ),
+    _Term(
+      icon: Icons.redo_rounded,
+      color: Color(0xFFBA68C8),
+      name: 'Carry',
+      definition: 'A foul penalty carries forward — it will be applied on top of the next scoring action.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.feltGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.menu_book_rounded,
+                    size: 18, color: AppTheme.feltGreen),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Game Terms',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  Text(
+                    'What every action means',
+                    style: TextStyle(
+                      color: Color(0x66FFFFFF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Scrollable term list
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              itemCount: _terms.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _TermRow(term: _terms[i]),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _Term {
+  final IconData icon;
+  final Color color;
+  final String name;
+  final String definition;
+  const _Term({
+    required this.icon,
+    required this.color,
+    required this.name,
+    required this.definition,
+  });
+}
+
+class _TermRow extends StatelessWidget {
+  final _Term term;
+  const _TermRow({required this.term});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: term.color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: term.color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Icon badge
+          Container(
+            width: 32,
+            height: 32,
+            margin: const EdgeInsets.only(top: 1),
+            decoration: BoxDecoration(
+              color: term.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(term.icon, size: 16, color: term.color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  term.name,
+                  style: TextStyle(
+                    color: term.color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  term.definition,
+                  style: const TextStyle(
+                    color: Color(0x99FFFFFF),
+                    fontSize: 12,
+                    height: 1.45,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PAGE 5 — Money Ball
 // ════════════════════════════════════════════════════════════════════
 
 class _MoneyBallPage extends StatelessWidget {
