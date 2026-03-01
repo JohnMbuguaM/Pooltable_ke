@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/rules_provider.dart';
+import '../services/sound_service.dart';
 import '../utils/constants.dart';
 import '../utils/theme.dart';
 import 'rules_editor_screen.dart';
+import 'privacy_policy_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _soundEnabled = SoundService.instance.isEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +79,39 @@ class SettingsScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
+              const Divider(height: 1),
+              SwitchListTile(
+                title: const Text('Game Sounds'),
+                subtitle: Text(
+                  _soundEnabled
+                      ? 'Sound effects active'
+                      : 'Sound effects muted',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.5),
+                  ),
+                ),
+                value: _soundEnabled,
+                onChanged: (value) {
+                  setState(() => _soundEnabled = value);
+                  SoundService.instance.setEnabled(value);
+                },
+                activeTrackColor: AppTheme.feltGreen,
+                secondary: Icon(
+                  _soundEnabled
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
+                  color: _soundEnabled
+                      ? AppTheme.feltGreen
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.3),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -94,8 +136,8 @@ class SettingsScreen extends StatelessWidget {
                     children: [
                       _buildInfoTile(
                         context,
-                        'Ball Sequence',
-                        '3-15, then 1, then 2',
+                        'Starting Ball',
+                        'Ball ${rules.startingBall}',
                         Icons.format_list_numbered_rounded,
                       ),
                       _buildInfoTile(
@@ -189,6 +231,46 @@ class SettingsScreen extends StatelessWidget {
                     );
                   }).toList(),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Legal section
+          _buildSection(
+            context,
+            'Legal',
+            Icons.gavel_rounded,
+            [
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  Icons.privacy_tip_rounded,
+                  size: 20,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.4),
+                ),
+                title: const Text(
+                  'Privacy Policy',
+                  style: TextStyle(fontSize: 14),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.3),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
