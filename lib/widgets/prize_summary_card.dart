@@ -30,17 +30,16 @@ class PrizeSummaryCard extends StatelessWidget {
         // Prize pool for this game
         final prizePool = config.prizePool(numPlayers);
 
-        // Board: accumulated + current game fee (visible from game start)
-        final boardTotal = session.totalBoardFees + config.boardFeePerGame;
+        // Board: this game only (not accumulated session total)
+        final boardTotal = config.boardFeePerGame;
 
         // Chalk projection for this game
         final wouldPayImmediately = config.shouldPayChalkmanImmediately(numPlayers);
         final projectedConsecutive =
             session.consecutiveLowPotGames + (wouldPayImmediately ? 0 : 1);
         final wouldPayThisGame = wouldPayImmediately || projectedConsecutive >= 3;
-        final chalkTotal = session.totalChalkmanFeesPaid +
-            session.accumulatedChalkmanFee +
-            config.chalkmanFeePerGame;
+        // Accumulated unpaid chalk from previous low-pot games + this game's fee
+        final chalkTotal = session.accumulatedChalkmanFee + config.chalkmanFeePerGame;
         final chalkPending = !wouldPayThisGame;
         final gamesUntilChalk = chalkPending ? (3 - projectedConsecutive) : 0;
 

@@ -125,8 +125,11 @@ class PrizeProvider extends ChangeNotifier {
   // ── In-game actions ──────────────────────────────────────────────────────
 
   /// Toggle wager-confirmed status for a player (green tick in the UI).
+  /// Auto-registers the player in the session if they were added mid-game.
   void toggleWagerConfirmed(String playerName) {
-    final player = _session?.findPlayer(playerName);
+    if (_session == null) return;
+    _session!.ensurePlayers([playerName]);
+    final player = _session!.findPlayer(playerName);
     if (player == null) return;
     player.wagerConfirmedThisGame = !player.wagerConfirmedThisGame;
     _notifyAndPersist();
