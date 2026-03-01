@@ -5,13 +5,15 @@ import '../providers/game_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/rules_provider.dart';
 import '../models/game.dart';
-import '../utils/helpers.dart';
 import '../utils/theme.dart';
 import 'new_game_screen.dart';
 import 'game_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'join_game_screen.dart';
+import 'home/home_game_card.dart';
+import 'home/home_stat_widgets.dart';
+import 'home/home_common_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -79,59 +81,126 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppTheme.feltGreen,
-        elevation: 0,
-        title: const Text('ChalkMan'),
-        actions: [
-          IconButton(
-            onPressed: () => context.read<ThemeProvider>().toggleTheme(),
-            icon: Icon(
-              context.watch<ThemeProvider>().isDark
-                  ? Icons.light_mode_rounded
-                  : Icons.dark_mode_rounded,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight + 8),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF00C060), Color(0xFF007840)],
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            onSelected: (value) {
-              switch (value) {
-                case 'history':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                  );
-                case 'settings':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  );
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history_rounded, size: 20),
-                    SizedBox(width: 12),
-                    Text('History'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings_rounded, size: 20),
-                    SizedBox(width: 12),
-                    Text('Settings'),
-                  ],
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x4400C060),
+                blurRadius: 14,
+                offset: Offset(0, 4),
               ),
             ],
           ),
-        ],
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            titleSpacing: 16,
+            title: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 38,
+                      height: 38,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ChalkMan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
+                        height: 1.1,
+                      ),
+                    ),
+                    Text(
+                      'Pool Score Tracker',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+                icon: Icon(
+                  context.watch<ThemeProvider>().isDark
+                      ? Icons.light_mode_rounded
+                      : Icons.dark_mode_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'history':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                      );
+                    case 'settings':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      );
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('History'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.settings_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Settings'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
@@ -139,48 +208,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           onRefresh: _refreshData,
           child: CustomScrollView(
             slivers: [
-            // Logo section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ChalkMan',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Pool Score Tracker',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
               // Active Games
               SliverToBoxAdapter(
                 child: Padding(
@@ -207,10 +234,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showGameTypeSelector(context),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Game'),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.feltGradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.feltGreen.withValues(alpha: 0.45),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: () => _showGameTypeSelector(context),
+            borderRadius: BorderRadius.circular(16),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'New Game',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -238,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         if (games.isEmpty) {
           return SliverToBoxAdapter(
-            child: _EmptyState(
+            child: HomeEmptyState(
               icon: Icons.sports_esports_outlined,
               message: 'No active games',
               submessage: 'Start a new game to begin scoring',
@@ -299,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     onDismissed: (_) {
                       context.read<GameProvider>().deleteGame(game.id);
                     },
-                    child: _GameCard(
+                    child: HomeGameCard(
                       game: game,
                       onTap: () => _navigateToGame(context, game),
                     ),
@@ -332,14 +394,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             labelStyle: TextStyle(
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7),
             ),
             selectedColor: AppTheme.feltGreen,
             backgroundColor: Theme.of(context).cardTheme.color,
             side: BorderSide(
-              color: isSelected ? AppTheme.feltGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+              color: isSelected
+                  ? AppTheme.feltGreen
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.1),
             ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             visualDensity: VisualDensity.compact,
           );
         },
@@ -367,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         if (completedGames.isEmpty) {
           return const SliverToBoxAdapter(
-            child: _EmptyState(
+            child: HomeEmptyState(
               icon: Icons.insights_rounded,
               message: 'No completed games yet',
               submessage: 'Stats will appear after your first game',
@@ -387,8 +460,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             try {
               final winner =
                   game.players.firstWhere((p) => p.id == game.winnerId);
-              winCounts[winner.name] =
-                  (winCounts[winner.name] ?? 0) + 1;
+              winCounts[winner.name] = (winCounts[winner.name] ?? 0) + 1;
               totalWinScore += winner.score;
               winnerCount++;
             } catch (_) {}
@@ -428,17 +500,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final leaderboard = winCounts.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
+        // Longest win streak per player
+        String streakHolder = '-';
+        int longestStreak = 0;
+        if (completedGames.length > 1) {
+          final streaks = <String, int>{};
+          final currentStreaks = <String, int>{};
+          for (final game in completedGames.reversed) {
+            String? winnerName;
+            if (game.winnerId != null) {
+              try {
+                winnerName = game.players
+                    .firstWhere((p) => p.id == game.winnerId)
+                    .name;
+              } catch (_) {}
+            }
+            for (final p in game.players) {
+              if (p.name == winnerName) {
+                currentStreaks[p.name] = (currentStreaks[p.name] ?? 0) + 1;
+                final s = currentStreaks[p.name]!;
+                if (s > (streaks[p.name] ?? 0)) streaks[p.name] = s;
+              } else {
+                currentStreaks[p.name] = 0;
+              }
+            }
+          }
+          streaks.forEach((name, streak) {
+            if (streak > longestStreak) {
+              longestStreak = streak;
+              streakHolder = name;
+            }
+          });
+        }
+
+        // Average game duration (minutes)
+        final durations = completedGames
+            .where((g) => g.completedAt != null)
+            .map((g) => g.completedAt!.difference(g.createdAt).inMinutes)
+            .where((d) => d > 0)
+            .toList();
+        final avgDuration =
+            durations.isNotEmpty ? (durations.reduce((a, b) => a + b) / durations.length).round() : 0;
+
+        // Total balls pocketed across all games
+        final totalBalls =
+            completedGames.fold<int>(0, (sum, g) => sum + g.pocketedBalls.length);
+
         return SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Summary stat cards
+                // Row 1 — games played / top winner / avg score
                 Row(
                   children: [
                     Expanded(
-                      child: _StatCard(
+                      child: HomeStatCard(
                         value: '$gamesPlayed',
                         label: 'Played',
                         icon: Icons.sports_esports_rounded,
@@ -447,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _StatCard(
+                      child: HomeStatCard(
                         value: topWinner,
                         label: '$topWins wins',
                         icon: Icons.emoji_events_rounded,
@@ -456,11 +574,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _StatCard(
+                      child: HomeStatCard(
                         value: '$avgWinScore',
                         label: 'Avg Score',
                         icon: Icons.trending_up_rounded,
                         color: Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Row 2 — streak / avg duration / total balls
+                Row(
+                  children: [
+                    Expanded(
+                      child: HomeStatCard(
+                        value: longestStreak > 1 ? '$longestStreak' : '-',
+                        label: longestStreak > 1 ? '$streakHolder streak' : 'Best streak',
+                        icon: Icons.whatshot_rounded,
+                        color: Colors.deepOrange,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: HomeStatCard(
+                        value: avgDuration > 0 ? '${avgDuration}m' : '-',
+                        label: 'Avg duration',
+                        icon: Icons.timer_rounded,
+                        color: Colors.purple,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: HomeStatCard(
+                        value: '$totalBalls',
+                        label: 'Balls potted',
+                        icon: Icons.circle_rounded,
+                        color: Colors.teal,
                       ),
                     ),
                   ],
@@ -504,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 12),
                 // Win leaderboard
                 if (leaderboard.isNotEmpty)
-                  _WinLeaderboard(entries: leaderboard),
+                  HomeWinLeaderboard(entries: leaderboard),
               ],
             ),
           ),
@@ -514,66 +664,108 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _showGameTypeSelector(BuildContext context) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Choose Game Type',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        insetPadding: const EdgeInsets.symmetric(
+            horizontal: 28, vertical: 60),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Icon header
+              Center(
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.feltGreen.withValues(alpha: 0.25),
+                        AppTheme.feltGreen.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: AppTheme.feltGreen.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.sports_esports_rounded,
+                    size: 32,
+                    color: AppTheme.feltGreen,
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              const Text(
+                'New Game',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Choose how you want to play',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
 
-            // Local Game
-            _GameTypeOption(
-              icon: Icons.phone_android_rounded,
-              title: 'Local Game',
-              subtitle: 'Play on this device only',
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToNewGame(context);
-              },
-            ),
-            const SizedBox(height: 12),
+              // Local Game
+              HomeGameTypeOption(
+                icon: Icons.phone_android_rounded,
+                title: 'Local Game',
+                subtitle: 'Play on this device only',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _navigateToNewGame(context);
+                },
+              ),
+              const SizedBox(height: 10),
 
-            // Online Game
-            _GameTypeOption(
-              icon: Icons.cloud_rounded,
-              title: 'Create Online Game',
-              subtitle: 'Share with multiple devices',
-              onTap: () {
-                Navigator.pop(context);
-                _createOnlineGame(context);
-              },
-            ),
-            const SizedBox(height: 12),
+              // Online Game
+              HomeGameTypeOption(
+                icon: Icons.cloud_rounded,
+                title: 'Create Online Game',
+                subtitle: 'Share with multiple devices',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _createOnlineGame(context);
+                },
+              ),
+              const SizedBox(height: 10),
 
-            // Join Game
-            _GameTypeOption(
-              icon: Icons.login_rounded,
-              title: 'Join Game',
-              subtitle: 'Enter a game code',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const JoinGameScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
+              // Join Game
+              HomeGameTypeOption(
+                icon: Icons.login_rounded,
+                title: 'Join Game',
+                subtitle: 'Enter a game code',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const JoinGameScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -610,379 +802,5 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         await provider.loadGameHistory();
       }
     }
-  }
-}
-
-class _GameCard extends StatelessWidget {
-  final Game game;
-  final VoidCallback onTap;
-
-  const _GameCard({
-    required this.game,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final playerNames = game.players.map((p) => p.name).join(', ');
-    final leader = game.leader;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.feltGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: AppTheme.feltGreen,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      playerNames,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          Helpers.formatDateTime(game.createdAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        if (leader != null) ...[
-                          Text(
-                            ' \u2022 ',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                              fontSize: 11,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              '${leader.name}: ${leader.score}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.accentGold.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.45),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WinLeaderboard extends StatelessWidget {
-  final List<MapEntry<String, int>> entries;
-
-  const _WinLeaderboard({required this.entries});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final maxWins = entries.first.value;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.leaderboard_rounded,
-                  size: 16,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
-              const SizedBox(width: 6),
-              Text(
-                'Win Leaderboard',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ...entries.take(5).map((entry) {
-            final fraction = maxWins > 0 ? entry.value / maxWins : 0.0;
-            final isTop = entry.key == entries.first.key;
-            final barColor =
-                isTop ? AppTheme.accentGold : AppTheme.feltGreen;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      entry.key,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            isTop ? FontWeight.w700 : FontWeight.w500,
-                        color: isTop
-                            ? AppTheme.accentGold
-                            : theme.colorScheme.onSurface,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Stack(
-                          children: [
-                            Container(
-                              height: 18,
-                              decoration: BoxDecoration(
-                                color: barColor.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            Container(
-                              height: 18,
-                              width: constraints.maxWidth * fraction,
-                              decoration: BoxDecoration(
-                                color: barColor.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${entry.value}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  final String? submessage;
-
-  const _EmptyState({
-    required this.icon,
-    required this.message,
-    this.submessage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(icon, size: 36, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15)),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                fontSize: 14,
-              ),
-            ),
-            if (submessage != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                submessage!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GameTypeOption extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _GameTypeOption({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.feltGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: AppTheme.feltGreen,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
