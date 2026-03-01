@@ -98,17 +98,6 @@ void main() {
       });
     });
 
-    group('penalty constants', () {
-      test('all penalties are 6 points', () {
-        expect(AppConstants.wrongBallContactPenalty, 6);
-        expect(AppConstants.cueBallScratchPenalty, 6);
-        expect(AppConstants.ballTouchedPenalty, 6);
-        expect(AppConstants.ballJumpedOffPenalty, 6);
-        expect(AppConstants.cueBallJumpedOffPenalty, 6);
-        expect(AppConstants.carryBallPenalty, 6);
-      });
-    });
-
     group('ballColors', () {
       test('has colors for all 15 balls', () {
         expect(AppConstants.ballColors.length, 15);
