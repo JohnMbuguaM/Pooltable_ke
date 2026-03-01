@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../utils/helpers.dart';
@@ -27,6 +28,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game History'),
+        actions: [
+          Consumer<GameProvider>(
+            builder: (context, provider, _) {
+              if (provider.gameHistory.isEmpty) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.ios_share_rounded),
+                tooltip: 'Export history',
+                onPressed: () => _exportHistory(provider.gameHistory),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
@@ -91,6 +104,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
         MaterialPageRoute(builder: (_) => const GameScreen()),
       );
     }
+  }
+
+  void _exportHistory(List<Game> games) {
+    final buf = StringBuffer();
+    buf.writeln('ChalkMan — Game History');
+    buf.writeln('Exported: ${Helpers.formatDateTime(DateTime.now())}');
+    buf.writeln('─' * 32);
+
+    for (var i = 0; i < games.length; i++) {
+      final g = games[i];
+      final status = g.status == GameStatus.completed
+          ? 'Completed'
+          : g.status == GameStatus.abandoned
+              ? 'Abandoned'
+              : 'Active';
+      buf.writeln('\nGame ${i + 1} — ${Helpers.formatDateTime(g.createdAt)}');
+      buf.writeln('Status: $status');
+      if (g.completedAt != null) {
+        final dur = g.completedAt!.difference(g.createdAt);
+        buf.writeln('Duration: ${Helpers.formatDuration(dur)}');
+      }
+      final sortedPlayers = List.from(g.players)
+        ..sort((a, b) => b.score.compareTo(a.score));
+      for (final p in sortedPlayers) {
+        final tag = p.id == g.winnerId ? ' ★' : '';
+        buf.writeln('  ${p.name}: ${p.score} pts$tag');
+      }
+    }
+
+    Share.share(buf.toString(), subject: 'ChalkMan Game History');
   }
 
   void _confirmDelete(

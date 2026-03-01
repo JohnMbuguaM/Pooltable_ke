@@ -1,4 +1,5 @@
 import '../models/game.dart';
+import '../models/game_rules.dart';
 import '../models/player.dart';
 import '../models/action.dart';
 import '../utils/constants.dart';
@@ -148,8 +149,7 @@ class GameLogicService {
     }
 
     game.actions.add(action);
-    // Player loses turn because cue ball was also pocketed
-    game.currentPlayerIndex = getNextPlayerIndex(game);
+    // Turn stays with current player — user must manually select next player
     return action;
   }
 
@@ -193,44 +193,54 @@ class GameLogicService {
     }
 
     game.actions.add(action);
-    game.currentPlayerIndex = getNextPlayerIndex(game);
+    // Turn stays with current player — user must manually select next player
     return action;
   }
 
-  /// Apply a penalty action
-  /// For ball-specific fouls (wrongBallContact, ballTouched, ballJumpedOff),
-  /// the penalty is the value of the specific ball involved.
-  /// For cue ball scratch, penalty is the value of the current target ball.
-  /// For non-ball fouls (cue off, carry), a flat penalty applies.
+  /// Apply a penalty action.
+  ///
+  /// All fouls use the involved ball's point value rather than a fixed number:
+  ///   - wrongBallContact  → value of the ball contacted (or target ball if unknown)
+  ///   - cueBallScratch    → value of the current target ball
+  ///   - carryBall         → value of the current target ball
+  ///   - ballTouched       → value of the ball touched (or target ball if unknown)
+  ///   - cueBallJumpedOff  → value of the current target ball
+  ///   - ballJumpedOff     → value of the jumped ball; effect depends on
+  ///                         [BallJumpOffMode] set in rules (deduct/neutral/add)
   static GameAction applyPenalty(Game game, ActionType penaltyType,
       {int? ballNumber}) {
     final player = game.currentPlayer;
-    int penalty;
 
-    // Ball-specific penalties use the ball's point value
-    if (ballNumber != null &&
-        (penaltyType == ActionType.wrongBallContact ||
-         penaltyType == ActionType.ballTouched ||
-         penaltyType == ActionType.ballJumpedOff)) {
-      penalty = AppConstants.getBallValue(ballNumber);
+    // Resolve the base ball value used for this foul.
+    final int ballValue;
+    if (ballNumber != null) {
+      ballValue = AppConstants.getBallValue(ballNumber);
     } else {
-      switch (penaltyType) {
-        case ActionType.wrongBallContact:
-          penalty = AppConstants.wrongBallContactPenalty;
-        case ActionType.cueBallScratch:
-          // Scratch penalty is the value of the current target ball
-          penalty = AppConstants.getBallValue(game.currentTargetBall);
-        case ActionType.ballTouched:
-          penalty = AppConstants.ballTouchedPenalty;
-        case ActionType.ballJumpedOff:
-          penalty = AppConstants.ballJumpedOffPenalty;
-        case ActionType.cueBallJumpedOff:
-          penalty = AppConstants.cueBallJumpedOffPenalty;
-        case ActionType.carryBall:
-          penalty = AppConstants.getBallValue(game.currentTargetBall);
-        default:
-          penalty = 0;
+      // Fall back to current target ball when no specific ball is known.
+      ballValue = AppConstants.getBallValue(game.currentTargetBall);
+    }
+
+    // Determine the net score change (positive = gain, negative = loss).
+    int pointsChange;
+    String descSuffix;
+
+    if (penaltyType == ActionType.ballJumpedOff) {
+      final mode = AppConstants.ballJumpOffMode;
+      switch (mode) {
+        case BallJumpOffMode.deduct:
+          pointsChange = -ballValue;
+          descSuffix = '(-$ballValue)';
+        case BallJumpOffMode.neutral:
+          pointsChange = 0;
+          descSuffix = '(neutral)';
+        case BallJumpOffMode.add:
+          pointsChange = ballValue;
+          descSuffix = '(+$ballValue)';
       }
+    } else {
+      // All other fouls deduct the ball value.
+      pointsChange = -ballValue;
+      descSuffix = '(-$ballValue)';
     }
 
     final action = GameAction(
@@ -239,18 +249,18 @@ class GameLogicService {
       playerId: player.id,
       type: penaltyType,
       ballNumber: ballNumber,
-      pointsChange: -penalty,
+      pointsChange: pointsChange,
       timestamp: DateTime.now(),
-      description: '${player.name}: ${penaltyType.label} (-$penalty)',
+      description: '${player.name}: ${penaltyType.label} $descSuffix',
       previousScore: player.score,
       previousCurrentBallIndex: game.currentBallSequenceIndex,
       previousRemainingBalls: List.from(game.remainingBalls),
       previousPocketedBalls: List.from(game.pocketedBalls),
     );
 
-    player.score -= penalty;
+    player.score += pointsChange;
 
-    // If a ball jumped off the table, it's removed from play
+    // If a ball jumped off the table, it's removed from play regardless of mode.
     if (penaltyType == ActionType.ballJumpedOff && ballNumber != null) {
       game.remainingBalls.remove(ballNumber);
       game.pocketedBalls.add(ballNumber);
@@ -260,7 +270,7 @@ class GameLogicService {
     }
 
     game.actions.add(action);
-    game.currentPlayerIndex = getNextPlayerIndex(game);
+    // Turn stays with current player — user must manually select next player
     return action;
   }
 
@@ -289,7 +299,7 @@ class GameLogicService {
 
     player.score -= penalty;
     game.actions.add(action);
-    game.currentPlayerIndex = getNextPlayerIndex(game);
+    // Turn stays with current player — user must manually select next player
     return action;
   }
 
@@ -415,6 +425,82 @@ class GameLogicService {
     return moneyBallPlayers;
   }
 
+  /// Check if pocketing the current (and last) ball would create a draw.
+  ///
+  /// Returns the list of OTHER active players whose score would TIE with the
+  /// current player after the pocket. An empty list means no draw would occur.
+  ///
+  /// A draw is only possible when only ONE ball remains — if there are more
+  /// balls left, a future pocket could still break the tie.
+  ///
+  /// This is a pure read — it does NOT mutate [game].
+  static List<Player> checkDrawBallPlayers(Game game) {
+    final activePlayers = game.activePlayers;
+    if (activePlayers.length < 2) return [];
+
+    // Draw only triggers when the board is cleared by this pocket.
+    if (game.remainingBalls.length != 1) return [];
+
+    final ball = game.currentTargetBall;
+    if (ball <= 0) return [];
+
+    final ballValue = AppConstants.getBallValue(ball);
+    final pocketer = game.currentPlayer;
+    final pocketerNewScore = pocketer.score + ballValue;
+
+    final drawPartners = <Player>[];
+    for (final other in activePlayers) {
+      if (other.id == pocketer.id) continue;
+      if (other.score == pocketerNewScore) {
+        drawPartners.add(other);
+      }
+    }
+    return drawPartners;
+  }
+
+  /// Simulate pocketing the current target ball and return the list of active
+  /// players who would be eliminated as a result.
+  ///
+  /// This is a pure read — it does NOT mutate [game].
+  /// Used to show an elimination-warning banner before the player shoots.
+  static List<Player> checkPotentialEliminationsOnPocket(Game game) {
+    final activePlayers = game.activePlayers;
+    if (activePlayers.length < 2) return [];
+
+    final ball = game.currentTargetBall;
+    if (ball <= 0) return [];
+
+    final ballValue = AppConstants.getBallValue(ball);
+    final pocketer = game.currentPlayer;
+
+    // Simulate scores after pocket
+    final simulatedPocketerScore = pocketer.score + ballValue;
+    final simulatedRemainingValue = game.remainingBallsValue - ballValue;
+
+    final wouldBeEliminated = <Player>[];
+
+    for (final player in activePlayers) {
+      // The pocketer gains points — they can't be eliminated by their own pocket
+      if (player.id == pocketer.id) continue;
+
+      // Highest score among all OTHER active players after the simulated pocket
+      int highestOtherScore = simulatedPocketerScore;
+      for (final other in activePlayers) {
+        if (other.id == player.id || other.id == pocketer.id) continue;
+        if (other.score > highestOtherScore) {
+          highestOtherScore = other.score;
+        }
+      }
+
+      // Elimination condition: can't catch up even with all remaining balls
+      if (player.score + simulatedRemainingValue < highestOtherScore) {
+        wouldBeEliminated.add(player);
+      }
+    }
+
+    return wouldBeEliminated;
+  }
+
   /// Check for early win condition
   static bool checkEarlyWin(Game game) {
     final activePlayers = game.activePlayers;
@@ -453,12 +539,23 @@ class GameLogicService {
   static bool checkGameOver(Game game) {
     if (game.remainingBalls.isEmpty) {
       final activePlayers = game.activePlayers;
+      game.completedAt = DateTime.now();
       if (activePlayers.isNotEmpty) {
-        final winner =
-            activePlayers.reduce((a, b) => a.score >= b.score ? a : b);
-        game.status = GameStatus.completed;
-        game.winnerId = winner.id;
-        game.completedAt = DateTime.now();
+        final maxScore =
+            activePlayers.fold(0, (m, p) => p.score > m ? p.score : m);
+        final topPlayers =
+            activePlayers.where((p) => p.score == maxScore).toList();
+
+        if (topPlayers.length > 1) {
+          // DRAW — multiple players share the highest score
+          game.status = GameStatus.draw;
+          game.winnerId = null;
+          game.drawPlayerIds = topPlayers.map((p) => p.id).toList();
+        } else {
+          game.status = GameStatus.completed;
+          game.winnerId = topPlayers.first.id;
+          game.drawPlayerIds = null;
+        }
       }
       return true;
     }
@@ -467,6 +564,7 @@ class GameLogicService {
     if (game.activePlayers.length == 1) {
       game.status = GameStatus.completed;
       game.winnerId = game.activePlayers.first.id;
+      game.drawPlayerIds = null;
       game.completedAt = DateTime.now();
       return true;
     }
@@ -504,10 +602,11 @@ class GameLogicService {
       }
     }
 
-    // Restore game status if it was completed
-    if (game.status == GameStatus.completed) {
+    // Restore game status if it was completed or a draw
+    if (game.status == GameStatus.completed || game.status == GameStatus.draw) {
       game.status = GameStatus.active;
       game.winnerId = null;
+      game.drawPlayerIds = null;
       game.completedAt = null;
       // Clear rankings
       for (final p in game.players) {
@@ -524,20 +623,22 @@ class GameLogicService {
   }
 
   /// Recalculate which players should be eliminated based on current scores
-  /// and remaining ball values. Used after undo to ensure consistency.
+  /// and remaining ball values. Used after undo / win revocation to ensure
+  /// consistency. Works correctly even when only 1 active player remains.
   static void recalculateEliminations(Game game) {
     final remainingValue = game.remainingBallsValue;
-    final activePlayers = game.players.where((p) => !p.isEliminated).toList();
 
-    if (activePlayers.length <= 1) return;
-
-    // Find the highest score among all non-eliminated players
-    int highestScore = 0;
-    for (final p in activePlayers) {
-      if (p.score > highestScore) highestScore = p.score;
+    // Find the highest score among non-eliminated players.
+    // If everyone is eliminated (edge case) use the overall highest.
+    int highestScore = game.players
+        .where((p) => !p.isEliminated)
+        .fold(0, (max, p) => p.score > max ? p.score : max);
+    if (highestScore == 0 && game.players.isNotEmpty) {
+      highestScore = game.players
+          .fold(0, (max, p) => p.score > max ? p.score : max);
     }
 
-    // Check eliminated players - should any come back?
+    // Check every eliminated player — should any come back?
     for (final player in game.players) {
       if (!player.isEliminated) continue;
 
@@ -554,13 +655,19 @@ class GameLogicService {
     game.currentPlayerIndex = getNextPlayerIndex(game);
   }
 
-  /// Assign final rankings based on scores
+  /// Assign final rankings based on scores, giving equal ranks to tied players.
   static void assignRankings(Game game) {
     final sorted = List<Player>.from(game.players)
       ..sort((a, b) => b.score.compareTo(a.score));
 
+    int rank = 1;
     for (int i = 0; i < sorted.length; i++) {
-      sorted[i].rank = i + 1;
+      if (i > 0 && sorted[i].score == sorted[i - 1].score) {
+        sorted[i].rank = sorted[i - 1].rank; // same rank for equal scores
+      } else {
+        sorted[i].rank = rank;
+      }
+      rank++;
     }
   }
 

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../models/game_rules.dart';
 import '../providers/rules_provider.dart';
 import '../utils/constants.dart';
 import '../utils/theme.dart';
+import '../widgets/ball_painter.dart';
 
 class RulesEditorScreen extends StatelessWidget {
   const RulesEditorScreen({super.key});
@@ -32,12 +34,102 @@ class RulesEditorScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Starting Ball Section
+              _buildSection(
+                context,
+                'Ball Sequence',
+                Icons.format_list_numbered_rounded,
+                [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Starting Ball',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Ball selector
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: AppConstants.allBalls.map((ball) {
+                            final isSelected = rules.startingBall == ball;
+                            return GestureDetector(
+                              onTap: () => rulesProvider.updateStartingBall(ball),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: isSelected
+                                      ? Border.all(color: AppTheme.feltGreen, width: 3)
+                                      : null,
+                                ),
+                                child: BallWidget(
+                                  ballNumber: ball,
+                                  size: isSelected ? 34 : 36,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 14),
+                        // Sequence preview
+                        Text(
+                          'Play Order',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: rules.ballSequence.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final ball = entry.value;
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  BallWidget(ballNumber: ball, size: 28),
+                                  if (idx < 14)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                                      child: Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 10,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.2),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               // Ball Values Section
               _buildSection(
                 context,
                 'Ball Point Values',
                 Icons.sports_bar_rounded,
-                AppConstants.ballSequence.map((ball) {
+                AppConstants.allBalls.map((ball) {
                   return _buildBallValueEditor(
                     context,
                     ball,
@@ -54,47 +146,40 @@ class RulesEditorScreen extends StatelessWidget {
                 'Foul Penalties',
                 Icons.warning_amber_rounded,
                 [
-                  _buildPenaltyEditor(
+                  _buildPenaltyInfo(
                     context,
                     'Wrong Ball Contact',
                     Icons.error_outline,
-                    rules.wrongBallPenalty,
-                    (value) => rulesProvider.updatePenalty('wrongBall', value),
+                    'Contact ball\'s points',
                   ),
-                  _buildPenaltyEditor(
+                  _buildPenaltyInfo(
                     context,
                     'Scratch (Cue Ball)',
                     Icons.cancel,
-                    rules.scratchPenalty,
-                    (value) => rulesProvider.updatePenalty('scratch', value),
+                    'Ball being played\'s points',
                   ),
-                  _buildPenaltyEditor(
+                  _buildPenaltyInfo(
                     context,
                     'Carry Ball',
                     Icons.swipe,
-                    rules.carryBallPenalty,
-                    (value) => rulesProvider.updatePenalty('carryBall', value),
+                    'Ball being played\'s points',
                   ),
-                  _buildPenaltyEditor(
+                  _buildPenaltyInfo(
                     context,
                     'Ball Touched',
                     Icons.touch_app,
-                    rules.ballTouchedPenalty,
-                    (value) => rulesProvider.updatePenalty('ballTouched', value),
+                    'Ball being touched\'s points',
                   ),
-                  _buildPenaltyEditor(
+                  _buildBallJumpOffEditor(
                     context,
-                    'Ball Jumped Off',
-                    Icons.call_made,
-                    rules.ballJumpedOffPenalty,
-                    (value) => rulesProvider.updatePenalty('ballJumpedOff', value),
+                    rules.ballJumpOffMode,
+                    (mode) => rulesProvider.updateBallJumpOffMode(mode),
                   ),
-                  _buildPenaltyEditor(
+                  _buildPenaltyInfo(
                     context,
                     'Cue Ball Jumped Off',
                     Icons.call_made_rounded,
-                    rules.cueBallJumpedOffPenalty,
-                    (value) => rulesProvider.updatePenalty('cueBallJumpedOff', value),
+                    'Ball being played\'s points',
                   ),
                 ],
               ),
@@ -232,12 +317,12 @@ class RulesEditorScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPenaltyEditor(
+  /// Read-only row describing how a foul penalty is calculated.
+  Widget _buildPenaltyInfo(
     BuildContext context,
     String label,
     IconData icon,
-    int currentValue,
-    Function(int) onChanged,
+    String description,
   ) {
     return ListTile(
       dense: true,
@@ -246,41 +331,80 @@ class RulesEditorScreen extends StatelessWidget {
         label,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
-      trailing: SizedBox(
-        width: 100,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline, size: 20),
-              onPressed: currentValue > 0
-                  ? () => onChanged(currentValue - 1)
-                  : null,
-              visualDensity: VisualDensity.compact,
-            ),
-            Text(
-              '$currentValue',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.red.shade400,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, size: 20),
-              onPressed: currentValue < 30
-                  ? () => onChanged(currentValue + 1)
-                  : null,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
+      subtitle: Text(
+        '− $description',
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.red.shade300,
+          fontWeight: FontWeight.w500,
         ),
       ),
-      onTap: () => _showValueDialog(
-        context,
-        label,
-        currentValue,
-        onChanged,
+    );
+  }
+
+  /// Editable row for Ball Jump Off mode (deduct / neutral / add).
+  Widget _buildBallJumpOffEditor(
+    BuildContext context,
+    BallJumpOffMode currentMode,
+    Function(BallJumpOffMode) onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.call_made, size: 20,
+              color: Colors.red.withValues(alpha: 0.7)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ball Jumped Off',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<BallJumpOffMode>(
+                  initialValue: currentMode,
+                  isDense: true,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: Colors.red.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: BallJumpOffMode.deduct,
+                      child: Text('− Deduct jumped ball\'s points',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    DropdownMenuItem(
+                      value: BallJumpOffMode.neutral,
+                      child: Text('  Neutral — no score change',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                    DropdownMenuItem(
+                      value: BallJumpOffMode.add,
+                      child: Text('+ Add jumped ball\'s points',
+                          style: TextStyle(fontSize: 13)),
+                    ),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) onChanged(mode);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

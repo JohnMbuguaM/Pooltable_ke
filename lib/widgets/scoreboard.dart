@@ -9,11 +9,24 @@ class Scoreboard extends StatefulWidget {
   final Function(String playerId)? onPlayerTap;
   final Function(String playerId, int currentScore)? onPlayerLongPress;
 
+  /// When true, the rank-dot in each column header is replaced by a wager
+  /// confirmation checkbox. Only set this when wagerPerPlayer > 0.
+  final bool wagerActive;
+
+  /// Map of player name (display name) → whether they confirmed their wager.
+  final Map<String, bool> wagerConfirmedMap;
+
+  /// Called with the player's display name when their wager tick is tapped.
+  final Function(String playerName)? onToggleWager;
+
   const Scoreboard({
     super.key,
     required this.game,
     this.onPlayerTap,
     this.onPlayerLongPress,
+    this.wagerActive = false,
+    this.wagerConfirmedMap = const {},
+    this.onToggleWager,
   });
 
   @override
@@ -64,11 +77,10 @@ class _ScoreboardState extends State<Scoreboard> {
     final grid = _buildScoreGrid();
     final rows = grid.rows;
     final totals = grid.totals;
-    final theme = Theme.of(context);
     final rowCount = rows.length;
     final hasHistory = rowCount > 0;
     final playerCount = widget.game.players.length;
-    const double minCellWidth = 46.0;
+    const double minCellWidth = 52.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -90,22 +102,41 @@ class _ScoreboardState extends State<Scoreboard> {
 
         final tableContent = Container(
           decoration: BoxDecoration(
-            color: theme.cardTheme.color,
-            borderRadius: BorderRadius.circular(12),
+            color: AppTheme.darkCard,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+              color: AppTheme.feltGreen.withValues(alpha: 0.12),
+              width: 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
-              buildCellRow(_headerCells(context, ranks)),
-              Divider(
+              // Header with gradient strip
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.darkElevated,
+                      AppTheme.darkCard,
+                    ],
+                  ),
+                ),
+                child: buildCellRow(_headerCells(context, ranks)),
+              ),
+              Container(
                 height: 1,
-                thickness: 1,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                color: AppTheme.feltGreen.withValues(alpha: 0.18),
               ),
               // Expand/collapse toggle
               if (hasHistory)
@@ -113,9 +144,8 @@ class _ScoreboardState extends State<Scoreboard> {
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    color:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.02),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    color: Colors.white.withValues(alpha: 0.02),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -124,16 +154,15 @@ class _ScoreboardState extends State<Scoreboard> {
                               ? Icons.keyboard_arrow_up_rounded
                               : Icons.keyboard_arrow_down_rounded,
                           size: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.3),
+                          color: AppTheme.feltGreen.withValues(alpha: 0.5),
                         ),
                         const SizedBox(width: 2),
                         Text(
                           _expanded ? 'Hide history' : '$rowCount entries',
                           style: TextStyle(
                             fontSize: 9,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.3),
+                            color: AppTheme.feltGreen.withValues(alpha: 0.5),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -142,10 +171,31 @@ class _ScoreboardState extends State<Scoreboard> {
                 ),
               // History rows (only when expanded)
               if (_expanded)
-                ...rows.map((row) =>
-                    buildCellRow(_historyCells(context, row))),
-              // Total row (always shown)
-              buildCellRow(_totalCells(context, totals)),
+                ...rows.asMap().entries.map((entry) => Container(
+                      color: entry.key.isEven
+                          ? Colors.white.withValues(alpha: 0.015)
+                          : Colors.transparent,
+                      child: buildCellRow(_historyCells(context, entry.value)),
+                    )),
+              // Total row — always shown, with elevated styling
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppTheme.darkElevated.withValues(alpha: 0.5),
+                      AppTheme.darkElevated,
+                    ],
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: AppTheme.feltGreen.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ),
+                child: buildCellRow(_totalCells(context, totals)),
+              ),
             ],
           ),
         );
@@ -169,36 +219,63 @@ class _ScoreboardState extends State<Scoreboard> {
       final isCurrent = player.id == widget.game.currentPlayer.id;
       final isEliminated = player.isEliminated;
       final rank = ranks[player.id] ?? widget.game.players.length;
+      final wagerConfirmed =
+          widget.wagerConfirmedMap[player.name] ?? false;
 
       return GestureDetector(
         onTap: widget.onPlayerTap != null
             ? () => widget.onPlayerTap!(player.id)
             : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
-            color: isCurrent
-                ? AppTheme.feltGreen.withValues(alpha: 0.08)
+            gradient: isCurrent
+                ? LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppTheme.feltGreen.withValues(alpha: 0.18),
+                      AppTheme.feltGreen.withValues(alpha: 0.06),
+                    ],
+                  )
+                : null,
+            border: isCurrent
+                ? const Border(
+                    bottom: BorderSide(
+                      color: AppTheme.feltGreen,
+                      width: 2,
+                    ),
+                  )
                 : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _RankDot(rank: rank, isEliminated: isEliminated),
-              const SizedBox(height: 2),
+              // Wager tick (when wager active) or rank dot
+              if (widget.wagerActive)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onToggleWager != null
+                      ? () => widget.onToggleWager!(player.name)
+                      : null,
+                  child: _WagerTick(confirmed: wagerConfirmed),
+                )
+              else
+                _RankDot(rank: rank, isEliminated: isEliminated),
+              const SizedBox(height: 3),
               Text(
                 Helpers.getPlayerInitials(player.name),
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
                   color: isEliminated
-                      ? Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.25)
-                      : Theme.of(context).colorScheme.onSurface,
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : isCurrent
+                          ? AppTheme.feltGreen
+                          : Colors.white.withValues(alpha: 0.85),
                   decoration:
                       isEliminated ? TextDecoration.lineThrough : null,
+                  letterSpacing: 0.3,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -206,10 +283,16 @@ class _ScoreboardState extends State<Scoreboard> {
               if (isCurrent && !isEliminated)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 1),
+                      horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
-                    color: AppTheme.feltGreen,
-                    borderRadius: BorderRadius.circular(3),
+                    gradient: AppTheme.feltGradient,
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.feltGreen.withValues(alpha: 0.35),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                   child: const Text(
                     'TURN',
@@ -217,17 +300,20 @@ class _ScoreboardState extends State<Scoreboard> {
                       fontSize: 7,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      letterSpacing: 0.3,
+                      letterSpacing: 0.4,
                     ),
                   ),
                 )
               else if (isEliminated)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 1),
+                      horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(3),
+                    color: Colors.red.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: const Text(
                     'OUT',
@@ -235,12 +321,12 @@ class _ScoreboardState extends State<Scoreboard> {
                       fontSize: 7,
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
-                      letterSpacing: 0.3,
+                      letterSpacing: 0.4,
                     ),
                   ),
                 )
               else
-                const SizedBox(height: 11),
+                const SizedBox(height: 12),
             ],
           ),
         ),
@@ -250,36 +336,33 @@ class _ScoreboardState extends State<Scoreboard> {
 
   List<Widget> _historyCells(
       BuildContext context, Map<String, int?> row) {
-    final theme = Theme.of(context);
     return widget.game.players.map((player) {
       final isCurrent = player.id == widget.game.currentPlayer.id;
       final score = row[player.id];
 
-      return GestureDetector(
-        onTap: widget.onPlayerTap != null
-            ? () => widget.onPlayerTap!(player.id)
-            : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-          decoration: BoxDecoration(
-            color: isCurrent
-                ? AppTheme.feltGreen.withValues(alpha: 0.08)
-                : null,
-          ),
-          child: Center(
-            child: score != null
-                ? Text(
-                    '$score',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.35),
-                    ),
-                    textAlign: TextAlign.center,
-                  )
-                : const SizedBox.shrink(),
-          ),
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+        decoration: BoxDecoration(
+          color: isCurrent
+              ? AppTheme.feltGreen.withValues(alpha: 0.04)
+              : null,
+        ),
+        child: Center(
+          child: score != null
+              ? Text(
+                  '$score',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: score > 0
+                        ? Colors.green.withValues(alpha: 0.55)
+                        : score < 0
+                            ? Colors.red.withValues(alpha: 0.55)
+                            : Colors.white.withValues(alpha: 0.3),
+                  ),
+                  textAlign: TextAlign.center,
+                )
+              : const SizedBox.shrink(),
         ),
       );
     }).toList();
@@ -287,7 +370,6 @@ class _ScoreboardState extends State<Scoreboard> {
 
   List<Widget> _totalCells(
       BuildContext context, Map<String, int> totals) {
-    final theme = Theme.of(context);
     return widget.game.players.map((player) {
       final isCurrent = player.id == widget.game.currentPlayer.id;
       final isEliminated = player.isEliminated;
@@ -295,13 +377,13 @@ class _ScoreboardState extends State<Scoreboard> {
 
       Color scoreColor;
       if (isEliminated) {
-        scoreColor = theme.colorScheme.onSurface.withValues(alpha: 0.2);
+        scoreColor = Colors.white.withValues(alpha: 0.15);
       } else if (score > 0) {
-        scoreColor = Colors.green;
+        scoreColor = AppTheme.feltGreen;
       } else if (score < 0) {
-        scoreColor = Colors.red;
+        scoreColor = Colors.redAccent;
       } else {
-        scoreColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
+        scoreColor = Colors.white.withValues(alpha: 0.4);
       }
 
       return GestureDetector(
@@ -312,7 +394,7 @@ class _ScoreboardState extends State<Scoreboard> {
             ? () => widget.onPlayerLongPress!(player.id, score)
             : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
           decoration: BoxDecoration(
             color: isCurrent
                 ? AppTheme.feltGreen.withValues(alpha: 0.08)
@@ -322,15 +404,61 @@ class _ScoreboardState extends State<Scoreboard> {
             child: Text(
               '$score',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
                 color: scoreColor,
+                shadows: score != 0
+                    ? [
+                        Shadow(
+                          color: scoreColor.withValues(alpha: 0.35),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : null,
               ),
             ),
           ),
         ),
       );
     }).toList();
+  }
+}
+
+/// Animated wager-confirmed checkbox shown in the scoreboard header when
+/// wagerPerPlayer > 0.
+class _WagerTick extends StatelessWidget {
+  final bool confirmed;
+  const _WagerTick({required this.confirmed});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        gradient: confirmed ? AppTheme.feltGradient : null,
+        color: confirmed ? null : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: confirmed
+              ? AppTheme.feltGreen
+              : Colors.white.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+        boxShadow: confirmed
+            ? [
+                BoxShadow(
+                  color: AppTheme.feltGreen.withValues(alpha: 0.4),
+                  blurRadius: 6,
+                ),
+              ]
+            : null,
+      ),
+      child: confirmed
+          ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+          : null,
+    );
   }
 }
 
@@ -364,10 +492,7 @@ class _RankDot extends StatelessWidget {
         color = const Color(0xFFCD7F32);
         icon = Icons.emoji_events_rounded;
       default:
-        color = Theme.of(context)
-            .colorScheme
-            .onSurface
-            .withValues(alpha: 0.35);
+        color = Colors.white.withValues(alpha: 0.3);
         icon = null;
     }
 
@@ -375,8 +500,16 @@ class _RankDot extends StatelessWidget {
       width: 20,
       height: 20,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(5),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: rank <= 3
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.25),
+                  blurRadius: 4,
+                ),
+              ]
+            : null,
       ),
       child: Center(
         child: icon != null

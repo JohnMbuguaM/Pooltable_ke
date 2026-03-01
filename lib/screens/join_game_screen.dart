@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../services/online_game_service.dart';
-import '../utils/game_code_generator.dart';
 import '../utils/theme.dart';
 import 'game_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -49,9 +48,9 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
 
       if (!mounted) return;
 
-      // Load game into provider
+      // Load game into provider and start real-time listener
       final gameProvider = context.read<GameProvider>();
-      gameProvider.setCurrentGame(game);
+      await gameProvider.joinOnlineGame(game);
 
       if (!mounted) return;
 

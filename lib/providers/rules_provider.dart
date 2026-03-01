@@ -58,33 +58,18 @@ class RulesProvider with ChangeNotifier {
     await saveRules(newRules);
   }
 
-  // Update penalty
-  Future<void> updatePenalty(String penaltyType, int points) async {
-    GameRules newRules;
+  // Update ball jump-off mode
+  Future<void> updateBallJumpOffMode(BallJumpOffMode mode) async {
+    final newRules = _rules.copyWith(ballJumpOffMode: mode);
+    await saveRules(newRules);
+  }
 
-    switch (penaltyType) {
-      case 'wrongBall':
-        newRules = _rules.copyWith(wrongBallPenalty: points);
-        break;
-      case 'scratch':
-        newRules = _rules.copyWith(scratchPenalty: points);
-        break;
-      case 'carryBall':
-        newRules = _rules.copyWith(carryBallPenalty: points);
-        break;
-      case 'ballTouched':
-        newRules = _rules.copyWith(ballTouchedPenalty: points);
-        break;
-      case 'ballJumpedOff':
-        newRules = _rules.copyWith(ballJumpedOffPenalty: points);
-        break;
-      case 'cueBallJumpedOff':
-        newRules = _rules.copyWith(cueBallJumpedOffPenalty: points);
-        break;
-      default:
-        return;
-    }
+  // Legacy — kept so any remaining callers compile; no longer wired to UI.
+  Future<void> updatePenalty(String penaltyType, int points) async {}
 
+  // Update starting ball
+  Future<void> updateStartingBall(int ball) async {
+    final newRules = _rules.copyWith(startingBall: ball);
     await saveRules(newRules);
   }
 

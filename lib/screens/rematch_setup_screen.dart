@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
+import '../providers/prize_provider.dart';
 import '../utils/constants.dart';
 import '../utils/helpers.dart';
 import '../utils/theme.dart';
@@ -23,6 +24,9 @@ class _RematchSetupScreenState extends State<RematchSetupScreen> {
   final List<TextEditingController> _newPlayerControllers = [];
   final _formKey = GlobalKey<FormState>();
 
+  late TextEditingController _wagerController;
+  bool _hasSession = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +41,14 @@ class _RematchSetupScreenState extends State<RematchSetupScreen> {
               included: true,
             ))
         .toList();
+
+    // Initialise wager field from the active prize session (if any).
+    final prizeSession = context.read<PrizeProvider>().session;
+    _hasSession = prizeSession != null;
+    final currentWager = prizeSession?.config.wagerPerPlayer ?? 0.0;
+    _wagerController = TextEditingController(
+      text: currentWager > 0 ? currentWager.toStringAsFixed(0) : '',
+    );
   }
 
   @override
@@ -44,6 +56,7 @@ class _RematchSetupScreenState extends State<RematchSetupScreen> {
     for (final c in _newPlayerControllers) {
       c.dispose();
     }
+    _wagerController.dispose();
     super.dispose();
   }
 
@@ -92,6 +105,16 @@ class _RematchSetupScreenState extends State<RematchSetupScreen> {
 
     final provider = context.read<GameProvider>();
     await provider.createGame(names);
+
+    // Continue the prize session with the new player list (and optional new wager).
+    if (mounted) {
+      double? newWager;
+      if (_hasSession) {
+        final parsed = double.tryParse(_wagerController.text.trim());
+        if (parsed != null) newWager = parsed;
+      }
+      context.read<PrizeProvider>().continueSession(names, newWagerPerPlayer: newWager);
+    }
 
     if (mounted) {
       Navigator.pushReplacement(
@@ -152,7 +175,59 @@ class _RematchSetupScreenState extends State<RematchSetupScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+
+            // ── Wager field (only shown when an active prize session exists) ──
+            if (_hasSession) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.monetization_on_rounded,
+                            size: 15, color: Colors.amber),
+                        SizedBox(width: 6),
+                        Text(
+                          'Wager Per Player (KSH)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.amber,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _wagerController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      decoration: InputDecoration(
+                        hintText: '0 = no wager',
+                        isDense: true,
+                        prefixText: 'KSH ',
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else
+              const SizedBox(height: 8),
 
             // New players section
             if (_newPlayerControllers.isNotEmpty) ...[

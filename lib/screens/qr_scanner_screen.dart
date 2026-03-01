@@ -11,8 +11,9 @@ class QrScannerScreen extends StatefulWidget {
 
 class _QrScannerScreenState extends State<QrScannerScreen> {
   final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
+    detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
+    formats: [BarcodeFormat.qrCode],
   );
   bool _hasScanned = false;
 
@@ -23,24 +24,41 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_hasScanned) return;
+    if (_hasScanned || !mounted) return;
 
-    final barcode = capture.barcodes.firstOrNull;
-    if (barcode == null || barcode.rawValue == null) return;
+    for (final barcode in capture.barcodes) {
+      final raw = barcode.rawValue ?? barcode.displayValue;
+      if (raw == null || raw.isEmpty) continue;
 
-    final code = _extractGameCode(barcode.rawValue!);
-    if (code == null) return;
+      final code = _extractGameCode(raw);
+      if (code != null) {
+        _hasScanned = true;
+        Navigator.pop(context, code);
+        return;
+      }
 
-    _hasScanned = true;
-    Navigator.pop(context, code);
+      // Barcode detected but doesn't look like a game code — show feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Not a valid game code: $raw'),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
   }
 
   /// Extract game code from scanned value.
-  /// Supports both raw codes (ABC123) and URLs containing codes.
+  /// Supports both raw codes (ABC123 / ABC-123) and URLs containing codes.
   String? _extractGameCode(String value) {
-    // Try direct code format: ABC-123 or ABC123
-    final cleaned = value.trim().toUpperCase().replaceAll('-', '');
-    if (RegExp(r'^[A-Z]{3}[0-9]{3}$').hasMatch(cleaned)) {
+    // Strip whitespace and hyphens, normalise to upper case
+    final cleaned = value.trim().toUpperCase().replaceAll(RegExp(r'[-\s]'), '');
+
+    // Direct match: exactly 6 alphanumeric chars (letters + digits)
+    if (RegExp(r'^[A-Z0-9]{6}$').hasMatch(cleaned)) {
       return cleaned;
     }
 
@@ -49,8 +67,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     if (uri != null) {
       final codeParam = uri.queryParameters['code'];
       if (codeParam != null) {
-        final code = codeParam.toUpperCase().replaceAll('-', '');
-        if (RegExp(r'^[A-Z]{3}[0-9]{3}$').hasMatch(code)) {
+        final code = codeParam.toUpperCase().replaceAll(RegExp(r'[-\s]'), '');
+        if (RegExp(r'^[A-Z0-9]{6}$').hasMatch(code)) {
           return code;
         }
       }

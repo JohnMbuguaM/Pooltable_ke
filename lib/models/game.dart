@@ -4,7 +4,7 @@ import 'action.dart';
 import 'online_game_data.dart';
 import '../utils/constants.dart';
 
-enum GameStatus { active, completed, abandoned }
+enum GameStatus { active, completed, abandoned, draw }
 
 class Game {
   final String id;
@@ -17,6 +17,7 @@ class Game {
   DateTime? completedAt;
   GameStatus status;
   String? winnerId;
+  List<String>? drawPlayerIds; // non-null only when status == GameStatus.draw
   List<GameAction> actions;
   int roundNumber;
   OnlineGameData? onlineData; // null for local games
@@ -32,6 +33,7 @@ class Game {
     this.completedAt,
     this.status = GameStatus.active,
     this.winnerId,
+    this.drawPlayerIds,
     List<GameAction>? actions,
     this.roundNumber = 1,
     this.onlineData,
@@ -61,7 +63,7 @@ class Game {
       players.where((p) => p.isEliminated).toList();
 
   int get remainingBallsValue =>
-      remainingBalls.fold(0, (sum, ball) => sum + AppConstants.getBallValue(ball));
+      remainingBalls.fold(0, (acc, ball) => acc + AppConstants.getBallValue(ball));
 
   Player? get leader {
     final active = activePlayers;
@@ -86,6 +88,7 @@ class Game {
       'completed_at': completedAt?.toIso8601String(),
       'status': status.index,
       'winner_id': winnerId,
+      'draw_player_ids': drawPlayerIds?.join(','),
       'round_number': roundNumber,
     };
   }
@@ -115,6 +118,10 @@ class Game {
           : null,
       status: GameStatus.values[map['status'] as int? ?? 0],
       winnerId: map['winner_id'] as String?,
+      drawPlayerIds: (map['draw_player_ids'] as String?)
+              ?.split(',')
+              .where((s) => s.isNotEmpty)
+              .toList(),
       actions: actions ?? [],
       roundNumber: map['round_number'] as int? ?? 1,
     );
@@ -133,6 +140,7 @@ class Game {
       'completedAt': completedAt?.toIso8601String(),
       'status': status.name,
       'winnerId': winnerId,
+      'drawPlayerIds': drawPlayerIds,
       'actions': actions.map((a) => a.toMap()).toList(),
       'roundNumber': roundNumber,
       if (onlineData != null) 'onlineData': onlineData!.toFirestore(),
@@ -155,6 +163,9 @@ class Game {
           : null,
       status: GameStatus.values.firstWhere((e) => e.name == data['status']),
       winnerId: data['winnerId'] as String?,
+      drawPlayerIds: data['drawPlayerIds'] != null
+          ? List<String>.from(data['drawPlayerIds'] as List)
+          : null,
       actions: (data['actions'] as List)
           .map((a) => GameAction.fromMap(a as Map<String, dynamic>))
           .toList(),

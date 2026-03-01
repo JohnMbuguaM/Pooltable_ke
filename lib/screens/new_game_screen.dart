@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
+import '../providers/prize_provider.dart';
 import '../utils/constants.dart';
 import '../utils/theme.dart';
 import 'game_screen.dart';
@@ -17,6 +18,7 @@ class NewGameScreen extends StatefulWidget {
 class _NewGameScreenState extends State<NewGameScreen>
     with SingleTickerProviderStateMixin {
   final List<TextEditingController> _controllers = [];
+  final _wagerController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   late AnimationController _animController;
 
@@ -36,6 +38,7 @@ class _NewGameScreenState extends State<NewGameScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _wagerController.dispose();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -61,8 +64,18 @@ class _NewGameScreenState extends State<NewGameScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final names = _controllers.map((c) => c.text.trim()).toList();
+    final wager = double.tryParse(_wagerController.text.trim()) ?? 0.0;
+
     final provider = context.read<GameProvider>();
     await provider.createGame(names);
+
+    // Start prize session (wager may be 0 — fees are still tracked)
+    if (mounted) {
+      context.read<PrizeProvider>().startSession(
+            playerNames: names,
+            wagerPerPlayer: wager,
+          );
+    }
 
     // If online game, convert to online before navigating
     if (widget.isOnline) {
@@ -243,6 +256,48 @@ class _NewGameScreenState extends State<NewGameScreen>
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
+
+              const SizedBox(height: 24),
+
+              // Wager section
+              Row(
+                children: [
+                  Icon(Icons.monetization_on_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.secondary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Wager (optional)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _wagerController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  hintText: 'KSH per player (0 = no wager)',
+                  prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                  suffixText: 'KSH',
+                  helperText:
+                      'Board KSH 20 + Chalkman KSH 10 deducted from pot',
+                  helperStyle: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return null;
+                  if (double.tryParse(value.trim()) == null) {
+                    return 'Enter a valid amount';
+                  }
+                  return null;
+                },
+              ),
 
               const SizedBox(height: 32),
 

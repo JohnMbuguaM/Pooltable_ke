@@ -22,6 +22,7 @@ class DatabaseService {
       path,
       version: AppConstants.dbVersion,
       onCreate: _createTables,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -37,6 +38,7 @@ class DatabaseService {
         completed_at TEXT,
         status INTEGER NOT NULL DEFAULT 0,
         winner_id TEXT,
+        draw_player_ids TEXT,
         round_number INTEGER NOT NULL DEFAULT 1
       )
     ''');
@@ -82,6 +84,14 @@ class DatabaseService {
         'CREATE INDEX idx_actions_game ON actions(game_id)');
     await db.execute(
         'CREATE INDEX idx_actions_player ON actions(player_id)');
+  }
+
+  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // v2: add draw_player_ids column
+      await db.execute(
+          'ALTER TABLE games ADD COLUMN draw_player_ids TEXT');
+    }
   }
 
   // ========== GAME CRUD ==========

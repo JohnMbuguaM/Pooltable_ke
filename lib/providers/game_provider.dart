@@ -10,6 +10,39 @@ import '../services/database_service.dart';
 import '../services/online_game_service.dart';
 import '../utils/constants.dart';
 
+/// Snapshot of full game state captured before an undo, used to restore on redo.
+class _RedoSnapshot {
+  final Map<String, int> playerScores;
+  final Map<String, bool> playerEliminated;
+  final Map<String, int?> playerEliminatedAtRound;
+  final Map<String, int> playerRanks;
+  final List<int> remainingBalls;
+  final List<int> pocketedBalls;
+  final int currentBallSequenceIndex;
+  final int currentPlayerIndex;
+  final GameStatus status;
+  final String? winnerId;
+  final List<String>? drawPlayerIds;
+  final DateTime? completedAt;
+  final GameAction action; // the action to re-add on redo
+
+  _RedoSnapshot({
+    required this.playerScores,
+    required this.playerEliminated,
+    required this.playerEliminatedAtRound,
+    required this.playerRanks,
+    required this.remainingBalls,
+    required this.pocketedBalls,
+    required this.currentBallSequenceIndex,
+    required this.currentPlayerIndex,
+    required this.status,
+    required this.winnerId,
+    this.drawPlayerIds,
+    required this.completedAt,
+    required this.action,
+  });
+}
+
 class GameProvider extends ChangeNotifier {
   static const _uuid = Uuid();
 
@@ -22,6 +55,7 @@ class GameProvider extends ChangeNotifier {
   Player? _moneyBallWinner; // Stores the money ball winner for celebration
   GameRules _rules = GameRules.defaults(); // Current game rules
   StreamSubscription<Game>? _gameStreamSubscription; // For online game sync
+  final List<_RedoSnapshot> _redoStack = [];
 
   Game? get currentGame => _currentGame;
   List<Game> get gameHistory => _gameHistory;
@@ -31,6 +65,7 @@ class GameProvider extends ChangeNotifier {
   bool get isMoneyBallWin => _isMoneyBallWin;
   Player? get moneyBallWinner => _moneyBallWinner;
   GameRules get rules => _rules;
+  bool get canRedo => _redoStack.isNotEmpty;
 
   void clearLastEvent() {
     _lastEvent = null;
@@ -62,7 +97,8 @@ class GameProvider extends ChangeNotifier {
     );
 
     _currentGame = game;
-    _clearMoneyBallWin(); // Reset money ball win flag for new game
+    _clearMoneyBallWin();
+    _redoStack.clear();
     await DatabaseService.saveGame(game);
     await loadActiveGames();
     notifyListeners();
@@ -76,7 +112,8 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
 
     _currentGame = await DatabaseService.getGame(gameId);
-    _clearMoneyBallWin(); // Reset money ball win flag when loading game
+    _clearMoneyBallWin();
+    _redoStack.clear();
 
     _isLoading = false;
     notifyListeners();
@@ -98,6 +135,15 @@ class GameProvider extends ChangeNotifier {
   void setCurrentGame(Game game) {
     _currentGame = game;
     _clearMoneyBallWin();
+    notifyListeners();
+  }
+
+  /// Join an online game and start listening for real-time updates
+  Future<void> joinOnlineGame(Game game) async {
+    _currentGame = game;
+    _clearMoneyBallWin();
+    // Start real-time listener so changes by the host appear immediately
+    await _listenToOnlineGame(game.id);
     notifyListeners();
   }
 
@@ -329,6 +375,8 @@ class GameProvider extends ChangeNotifier {
 
   Future<void> _postAction({bool isMoneyBallPocket = false}) async {
     if (_currentGame == null) return;
+    // Any new action clears the redo history
+    _redoStack.clear();
 
     // Check re-entries first (leader may have lost points from fouls,
     // letting eliminated players back in)
@@ -360,7 +408,14 @@ class GameProvider extends ChangeNotifier {
 
     // Check natural game over
     if (GameLogicService.checkGameOver(_currentGame!)) {
-      if (_currentGame!.winnerId != null) {
+      if (_currentGame!.status == GameStatus.draw) {
+        final ids = _currentGame!.drawPlayerIds ?? [];
+        final names = _currentGame!.players
+            .where((p) => ids.contains(p.id))
+            .map((p) => p.name)
+            .join(' & ');
+        _lastEvent = "It's a draw! $names tied!";
+      } else if (_currentGame!.winnerId != null) {
         final winner = _currentGame!.players.firstWhere(
             (p) => p.id == _currentGame!.winnerId);
         _lastEvent = '${winner.name} wins!';
@@ -383,17 +438,97 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ========== UNDO ==========
+  // ========== REVOKE WIN ==========
+
+  /// Revoke the current win and restore game to active state
+  Future<void> revokeWin() async {
+    if (_currentGame == null || !_currentGame!.isGameOver) return;
+    if (_currentGame!.status == GameStatus.abandoned) return;
+
+    _currentGame!.status = GameStatus.active;
+    _currentGame!.winnerId = null;
+    _currentGame!.drawPlayerIds = null;
+    _currentGame!.completedAt = null;
+    for (final p in _currentGame!.players) {
+      p.rank = 0;
+    }
+    _clearMoneyBallWin();
+
+    // Re-evaluate eliminations: players who can now compete should be un-eliminated.
+    GameLogicService.recalculateEliminations(_currentGame!);
+
+    _lastEvent = 'Revoked — game is active again';
+
+    await _saveCurrentGame();
+    await loadActiveGames();
+    notifyListeners();
+  }
+
+  // ========== UNDO / REDO ==========
 
   Future<void> undoLastAction() async {
     if (_currentGame == null || _currentGame!.actions.isEmpty) return;
 
-    final success = GameLogicService.undoLastAction(_currentGame!);
+    final game = _currentGame!;
+
+    // Snapshot the full game state BEFORE undoing so we can redo later
+    final actionToUndo = game.actions.last;
+    _redoStack.add(_RedoSnapshot(
+      playerScores: {for (final p in game.players) p.id: p.score},
+      playerEliminated: {for (final p in game.players) p.id: p.isEliminated},
+      playerEliminatedAtRound: {for (final p in game.players) p.id: p.eliminatedAtRound},
+      playerRanks: {for (final p in game.players) p.id: p.rank},
+      remainingBalls: List.from(game.remainingBalls),
+      pocketedBalls: List.from(game.pocketedBalls),
+      currentBallSequenceIndex: game.currentBallSequenceIndex,
+      currentPlayerIndex: game.currentPlayerIndex,
+      status: game.status,
+      winnerId: game.winnerId,
+      drawPlayerIds: game.drawPlayerIds != null ? List.from(game.drawPlayerIds!) : null,
+      completedAt: game.completedAt,
+      action: actionToUndo,
+    ));
+
+    final success = GameLogicService.undoLastAction(game);
     if (success) {
-      _lastEvent = 'Action undone';
+      _lastEvent = 'Undone: ${actionToUndo.description}';
       await _saveCurrentGame();
       notifyListeners();
+    } else {
+      _redoStack.removeLast(); // undo failed — discard the snapshot
     }
+  }
+
+  Future<void> redoLastAction() async {
+    if (_currentGame == null || _redoStack.isEmpty) return;
+
+    final game = _currentGame!;
+    final snapshot = _redoStack.removeLast();
+
+    // Restore all player states
+    for (final player in game.players) {
+      player.score = snapshot.playerScores[player.id] ?? player.score;
+      player.isEliminated = snapshot.playerEliminated[player.id] ?? player.isEliminated;
+      player.eliminatedAtRound = snapshot.playerEliminatedAtRound[player.id];
+      player.rank = snapshot.playerRanks[player.id] ?? player.rank;
+    }
+
+    // Restore game state
+    game.remainingBalls = List.from(snapshot.remainingBalls);
+    game.pocketedBalls = List.from(snapshot.pocketedBalls);
+    game.currentBallSequenceIndex = snapshot.currentBallSequenceIndex;
+    game.currentPlayerIndex = snapshot.currentPlayerIndex;
+    game.status = snapshot.status;
+    game.winnerId = snapshot.winnerId;
+    game.drawPlayerIds = snapshot.drawPlayerIds != null ? List.from(snapshot.drawPlayerIds!) : null;
+    game.completedAt = snapshot.completedAt;
+
+    // Re-add the action to the action log
+    game.actions.add(snapshot.action);
+
+    _lastEvent = 'Redone: ${snapshot.action.description}';
+    await _saveCurrentGame();
+    notifyListeners();
   }
 
   // ========== MANUAL ADJUSTMENTS ==========
