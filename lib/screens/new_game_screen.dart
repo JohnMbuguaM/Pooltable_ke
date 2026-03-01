@@ -64,6 +64,16 @@ class _NewGameScreenState extends State<NewGameScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final names = _controllers.map((c) => c.text.trim()).toList();
+
+    // Reject duplicate names (case-insensitive)
+    final unique = names.map((n) => n.toLowerCase()).toSet();
+    if (unique.length != names.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Each player must have a unique name')),
+      );
+      return;
+    }
+
     final wager = double.tryParse(_wagerController.text.trim()) ?? 0.0;
 
     final provider = context.read<GameProvider>();

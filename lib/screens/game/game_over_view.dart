@@ -348,8 +348,8 @@ class _GameOverViewState extends State<GameOverView>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppTheme.darkCard,
-                          AppTheme.darkElevated,
+                          AppTheme.gameCard,
+                          AppTheme.gameElevated,
                         ],
                       ),
                       borderRadius: BorderRadius.circular(18),
@@ -426,7 +426,7 @@ class _GameOverViewState extends State<GameOverView>
               // ── Final standings card ─────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.darkCard,
+                  color: AppTheme.gameCard,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.07),
@@ -451,8 +451,8 @@ class _GameOverViewState extends State<GameOverView>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            AppTheme.darkElevated,
-                            AppTheme.darkCard,
+                            AppTheme.gameElevated,
+                            AppTheme.gameCard,
                           ],
                         ),
                         border: Border(

@@ -28,6 +28,11 @@ class AppTheme {
   static const Color darkCard     = Color(0xFF193049);   // cards
   static const Color darkElevated = Color(0xFF1E3858);   // input fields / chips
 
+  // ── Game screen surfaces — one step lighter for less oppressive feel ──────
+  static const Color gameBg       = Color(0xFF1A2540);   // game scaffold bg
+  static const Color gameCard     = Color(0xFF243050);   // game cards
+  static const Color gameElevated = Color(0xFF2B3A5E);   // elevated within game
+
   // ── Gradient helpers ──────────────────────────────────────────────────────
   static const LinearGradient feltGradient = LinearGradient(
     begin: Alignment.topLeft,

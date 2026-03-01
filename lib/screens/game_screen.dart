@@ -55,6 +55,7 @@ class GameScreen extends StatelessWidget {
         !game.onlineData!.isHost(FirebaseService.currentUserId);
 
     return Scaffold(
+      backgroundColor: AppTheme.gameBg,
       appBar: _buildAppBar(context, game, provider, isReadOnly),
       body: game.isGameOver
           ? GameOverView(game: game, provider: provider)
@@ -391,10 +392,19 @@ class GameScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                Navigator.pop(ctx);
-                provider.addPlayerMidGame(name);
+              if (name.isEmpty) return;
+              final isDuplicate = provider.currentGame?.players.any(
+                    (p) => p.name.trim().toLowerCase() == name.toLowerCase(),
+                  ) ??
+                  false;
+              if (isDuplicate) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('"$name" is already in this game')),
+                );
+                return;
               }
+              Navigator.pop(ctx);
+              provider.addPlayerMidGame(name);
             },
             child: const Text('Add'),
           ),

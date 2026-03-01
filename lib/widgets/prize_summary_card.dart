@@ -87,14 +87,30 @@ class PrizeSummaryCard extends StatelessWidget {
                       color: AppTheme.accentGold.withValues(alpha: 0.35),
                     ),
                   ),
-                  child: Text(
-                    'G${session.currentGameNumber}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.accentGold,
-                      letterSpacing: 0.5,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        config.wagerPerPlayer > 0
+                            ? config.wagerPerPlayer.toStringAsFixed(0)
+                            : 'Free',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.accentGold,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      Text(
+                        config.wagerPerPlayer > 0 ? 'KSH' : '',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.accentGold.withValues(alpha: 0.7),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
